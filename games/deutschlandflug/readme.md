@@ -15,4 +15,4 @@ Hinweise:
 - Grenzen der Bundesländer und Nachbarländer: [Natural Earth](https://www.naturalearthdata.com/) (gemeinfrei), vereinfacht.
 - Die Landesflaggen werden im Spiel selbst gezeichnet. Wappen sind dabei stark vereinfacht.
 - Die Pins von Mainz/Wiesbaden und Berlin/Potsdam sind leicht auseinandergerückt, damit man sie beim Fliegen unterscheiden kann.
-- Braucht Internet (Three.js wird von cdnjs geladen).
+- Three.js wird aus `assets/vendor/` geladen, das Spiel braucht keine fremden Server.

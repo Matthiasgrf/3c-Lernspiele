@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Seite nicht gefunden – Lernspiele der 3c</title>
+<meta name="robots" content="noindex">
+<style>
+html,body{margin:0}
+body{font-family:"Trebuchet MS","Segoe UI",system-ui,sans-serif;color:#16324f;min-height:100vh;text-align:center;
+  padding:60px 16px;box-sizing:border-box;background:linear-gradient(#69b9ee 0,#d6ecfb 360px,#eef7fd 100%) no-repeat,#eef7fd}
+h1{margin:0;font-size:clamp(30px,6vw,48px);color:#fff;text-shadow:0 3px 0 rgba(22,50,79,.35)}
+p{font-size:20px;margin:16px 0 0}
+a{display:inline-block;margin-top:26px;font-size:22px;font-weight:700;color:#fff;background:#ff8a1f;border:4px solid #fff;
+  border-radius:999px;padding:14px 28px;text-decoration:none;box-shadow:0 6px 18px rgba(22,50,79,.25)}
+</style>
+</head>
+<body>
+<h1>🧭 Hoppla, verflogen!</h1>
+<p>Diese Seite gibt es nicht.</p>
+<a id="home" href="./">🏠 Alle Spiele</a>
+<script>
+/* GitHub Pages zeigt diese Seite für jeden unbekannten Pfad. Der Link soll immer zur Startseite
+   des Projekts führen: bei <name>.github.io/<repository>/… ist das der erste Pfad-Abschnitt. */
+(function(){
+  var first=location.pathname.split('/')[1]||'';
+  var onPages=/\.github\.io$/.test(location.hostname);
+  document.getElementById('home').href=(onPages&&first)?'/'+first+'/':'/';
+})();
+</script>
+</body>
+</html>

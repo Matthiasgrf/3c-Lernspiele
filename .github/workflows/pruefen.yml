@@ -1,0 +1,39 @@
+name: Spiele prüfen
+
+# Läuft bei jedem Push: erst die Regel-Prüfung, dann öffnet ein Browser die Startseite und jedes Spiel.
+on:
+  push:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pruefen-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  pruefen:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Regeln prüfen (Dateien, games.js, Pfade)
+        run: node tools/check.js
+      - name: Browser installieren
+        run: |
+          npm install --no-audit --no-fund
+          npx playwright install --with-deps chromium
+      - name: Startseite und Spiele im Browser öffnen
+        run: node tools/smoke.js
+      - name: Screenshots hochladen
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: screenshots
+          path: test-ergebnisse/
+          if-no-files-found: ignore
+          retention-days: 14

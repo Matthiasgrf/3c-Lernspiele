@@ -5,4 +5,4 @@ Aufgaben lösen (Getreidekorn und Mähdrescher beschriften, Getreidepflanze, Lü
 Wachstum im Jahreslauf, Arbeit früher und heute, Inhaltsstoffe).
 
 Steuerung: Pfeiltasten am Computer, Pfeil-Buttons auf Tablet/Handy.
-Benötigt Internet (Three.js wird von cdnjs geladen).
+Three.js wird aus `assets/vendor/` geladen, das Spiel braucht keine fremden Server.

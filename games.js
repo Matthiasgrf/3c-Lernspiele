@@ -17,10 +17,10 @@
 window.GAMES = [
   {
     id: "europaflug",
-    title: "EuropaFlug",
+    title: "Flug über Europa",
     description: "Fliege über Europa und lerne Länder, Hauptstädte, Flaggen und Sehenswürdigkeiten.",
     age: "8–10 Jahre",
-    subject: "Sachunterricht"
+    subject: "Erdkunde"
   },
   {
     id: "elisabeth",
@@ -38,16 +38,16 @@ window.GAMES = [
   },
   {
     id: "deutschlandflug",
-    title: "DeutschlandFlug",
+    title: "Flug über Deutschland",
     description: "Fliege über Deutschland zu den 16 Bundesländern und lerne ihre Flaggen und Hauptstädte.",
     age: "3. Klasse",
-    subject: "Sachunterricht"
+    subject: "Erdkunde"
   },
   {
     id: "weltflug",
-    title: "WeltFlug",
+    title: "Flug über die Welt",
     description: "Fliege um die ganze Welt zu allen 193 Ländern und lerne ihre Flaggen, Hauptstädte und Sehenswürdigkeiten.",
     age: "3. Klasse",
-    subject: "Sachunterricht"
+    subject: "Erdkunde"
   }
 ];

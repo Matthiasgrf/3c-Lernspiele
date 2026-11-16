@@ -1,8 +1,8 @@
-# WeltFlug
+# Flug über die Welt
 
-Flugspiel nach dem Vorbild von EuropaFlug, aber für die ganze Welt: Mit dem Flugzeug zu allen
+Flugspiel nach dem Vorbild von Flug über Europa, aber für die ganze Welt: Mit dem Flugzeug zu allen
 193 Mitgliedsstaaten der Vereinten Nationen fliegen, dem orangen Pfeil zum Ziel-Land folgen und bei der
-gelben Kugel (Hauptstadt) landen. Nach der Landung gibt es die gleichen Fragen wie bei EuropaFlug:
+gelben Kugel (Hauptstadt) landen. Nach der Landung gibt es die gleichen Fragen wie bei Flug über Europa:
 
 1. Welche Flagge gehört zum Land?
 2. Wie heißt die Hauptstadt?
@@ -14,7 +14,7 @@ Wer alle Länder besucht hat, wird „Welt-Meister“. Der Spielstand wird im Br
 Steuerung: Pfeiltasten oder A/D zum Lenken, W schneller, S langsamer, Leertaste landen.
 Auf Tablet/Handy: ◀ ▶ gedrückt halten, 🚀 schneller, Landen-Button antippen.
 
-Unterschiede zu EuropaFlug:
+Unterschiede zu Flug über Europa:
 - Die Welt hat keinen Rand nach Osten und Westen: Man kann rund um die Erde fliegen (z. B. über den Pazifik).
 - Das nächste Ziel ist immer eines der sechs nächstgelegenen Länder, damit die Flüge kurz bleiben.
   „🎲 Anderes Ziel“ wählt ein beliebiges Land irgendwo auf der Welt.

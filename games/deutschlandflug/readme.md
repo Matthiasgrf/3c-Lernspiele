@@ -1,6 +1,6 @@
-# DeutschlandFlug
+# Flug über Deutschland
 
-Flugspiel nach dem Vorbild von EuropaFlug: Mit dem Flugzeug über Deutschland zu allen 16 Bundesländern fliegen,
+Flugspiel nach dem Vorbild von Flug über Europa: Mit dem Flugzeug über Deutschland zu allen 16 Bundesländern fliegen,
 in der jeweiligen Hauptstadt landen und zwei Fragen beantworten:
 
 1. Welche Flagge gehört zum Bundesland?

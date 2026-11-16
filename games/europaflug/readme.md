@@ -1,4 +1,4 @@
-# EuropaFlug
+# Flug über Europa
 
 3D-Flugspiel: Mit dem Flugzeug über Europa fliegen, dem orangen Pfeil zum Ziel-Land folgen und bei der
 roten Kugel (Hauptstadt) landen. Nach der Landung gibt es Fragen zum Land:

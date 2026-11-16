@@ -190,6 +190,77 @@ module.exports = async function (t) {
   t.check('Erstes Spiel beginnt mit Stufe 1', await page.evaluate(() => ROBI.game().skill === 1));
   await page.close();
 
+  /* ---------- Lernen: Tipp, Wiederholung beim Endgegner und im nächsten Spiel, Rückblick ---------- */
+  const learnSetup = () => {
+    window.solve = (o, wrongFirst) => {
+      if (wrongFirst) ROBI.bump(o.blocks.find(b => b.value !== o.q.ans));
+      ROBI.bump(o.blocks.find(b => b.value === o.q.ans));
+    };
+    /* Endgegner besiegen, ohne auf die Pausen zwischen den Aufgaben zu warten */
+    window.beatBoss = async () => {
+      const G = ROBI.game(), B = G.L.boss, asked = [];
+      for (let i = 0; i < 3; i++) {
+        asked.push({ text: B.q.text, replay: !!B.q.replay });
+        solve(B);
+        B.wait = 0.01;
+        await new Promise(r => setTimeout(r, 150));
+      }
+      G.p.x = G.L.goal.x - 30; G.p.y = 280;
+      return asked;
+    };
+  };
+  page = await go(DESK);
+  await page.click('[data-topic="mal"]');
+  await page.evaluate(learnSetup);
+  const learn = await page.evaluate(async () => {
+    const G = ROBI.game(), L = G.L, out = {};
+    solve(L.stations[0]); solve(L.stations[1]);
+    const hard = L.stations[2];
+    out.text = hard.q.text; out.full = hard.q.full; out.ans = hard.q.ans;
+    ROBI.bump(hard.blocks.find(b => b.value !== hard.q.ans));
+    out.tip = hard.msg;
+    ROBI.bump(hard.blocks.find(b => b.value === hard.q.ans));
+    for (let i = 3; i < L.stations.length; i++) solve(L.stations[i]);
+    out.boss = await beatBoss();
+    return out;
+  });
+  t.check('Tipp nach dem ersten Fehler, ohne die Lösung zu verraten',
+    learn.tip.startsWith('🤔 Noch nicht ganz. Tipp: ') && !new RegExp('= ' + learn.ans + '\\b').test(learn.tip), learn.tip);
+  t.check('Endgegner fragt die verpasste Aufgabe noch einmal, danach neue',
+    learn.boss[0].text === learn.text && learn.boss[0].replay && !learn.boss[1].replay && learn.boss[1].text !== learn.text,
+    JSON.stringify(learn.boss));
+  await page.waitForSelector('#win:not([hidden])', { timeout: 10000 });
+  const review = await page.textContent('#review');
+  t.check('Rückblick nennt die knifflige Aufgabe mit Lösung', review.includes('knifflig') && review.includes(learn.full), review);
+  await t.shot(page, 'rueckblick');
+  let mem = await saved(page);
+  t.check('Verpasste Aufgabe und erreichte Stufe werden gespeichert',
+    mem.again.mal.length === 1 && mem.again.mal[0].text === learn.text && mem.lvl.mal >= 2, JSON.stringify(mem.again) + ' Stufe ' + mem.lvl.mal);
+  /* nächstes Spiel im selben Thema: die Aufgabe kommt an Station 2 wieder */
+  await page.click('#againBtn');
+  await page.evaluate(learnSetup);
+  const again = await page.evaluate(() => {
+    const G = ROBI.game(), L = G.L;
+    solve(L.stations[0]);
+    const q = L.stations[1].q;
+    solve(L.stations[1]);
+    return { text: q.text, again: !!q.again };
+  });
+  mem = await saved(page);
+  t.check('Nächstes Spiel: Aufgabe kommt wieder und ist nach richtigem ersten Versuch abgehakt',
+    again.again && again.text === learn.text && mem.again.mal.length === 0, JSON.stringify(again) + ' ' + JSON.stringify(mem.again));
+  await page.evaluate(async () => {
+    const L = ROBI.game().L;
+    for (let i = 2; i < L.stations.length; i++) solve(L.stations[i]);
+    await beatBoss();
+  });
+  await page.waitForSelector('#win:not([hidden])', { timeout: 10000 });
+  t.check('Rückblick ohne Fehler lobt', (await page.textContent('#review')).includes('Alle Aufgaben beim ersten Versuch'));
+  await page.close();
+  page = await go(DESK, '', { again: { mal: [{ text: 'kaputt' }, 7, { text: '3 · 3 = ?', ans: 9, opts: [9, 9, 8], exp: '', tip: '', full: '' }] } });
+  t.check('Kaputte Merkliste wird beim Laden verworfen', await page.evaluate(() => { document.querySelector('[data-topic="mal"]').click(); return ROBI.game().again.length === 0; }));
+  await page.close();
+
   /* ---------- Serien-Bonus ---------- */
   page = await go(PHONE);
   await page.tap('[data-topic="mal"]');

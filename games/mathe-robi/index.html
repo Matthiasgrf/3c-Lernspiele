@@ -79,11 +79,15 @@ p{font-size:17px;line-height:1.4;margin:8px 0}
 .item.dear{opacity:.6}
 .item:focus-visible{outline:4px solid #16324f;outline-offset:2px}
 .stars .off{opacity:.2}
+#review{margin:8px 0 2px;padding:8px 12px;border-radius:14px;background:#fff4dc;font-size:16px}
+#review b{display:block;margin-bottom:2px}
+#review span{display:inline-block;margin:2px 6px;padding:2px 10px;border-radius:999px;background:#fff;font-weight:700;white-space:nowrap}
 .keys{font-size:15px;color:#4a6078}
 #streak{position:absolute;right:calc(10px + env(safe-area-inset-right));top:calc(50px + env(safe-area-inset-top));font-size:15px;padding:5px 11px}
 [hidden]{display:none!important}
 @media (max-width:430px){.pill{font-size:14px;padding:6px 10px}.hud{gap:5px}#streak{font-size:13px;top:calc(46px + env(safe-area-inset-top))}}
-@media (max-height:430px){.card{padding:12px 18px}.intro,.keys{display:none}h1{font-size:22px}#question{font-size:22px;padding:3px 16px}
+@media (max-height:430px){.card{padding:12px 18px}.intro,.keys{display:none}h1{font-size:22px}#question{font-size:22px;padding:3px 16px}#feedback{font-size:14px;max-width:none}
+  #streak{top:auto;bottom:calc(8px + env(safe-area-inset-bottom));right:50%;transform:translateX(50%)}
   .btn{min-height:46px;padding:8px 10px;font-size:17px}.group .btn{min-height:40px;padding:5px 8px;font-size:16px}.group .list{gap:6px}p{font-size:15px;margin:5px 0}.stars{font-size:40px}}
 </style>
 </head>
@@ -96,8 +100,8 @@ p{font-size:17px;line-height:1.4;margin:8px 0}
     <span class="pill" id="progress"></span>
     <span class="pill" id="gears"></span>
     <button class="pill" id="mute" aria-label="Ton an oder aus">🔊</button>
-    <span class="pill" id="streak"></span>
   </div>
+  <span class="pill" id="streak" hidden></span>
   <div id="banner" hidden>
     <div id="question"></div>
     <div id="feedback" aria-live="polite"></div>
@@ -160,6 +164,7 @@ p{font-size:17px;line-height:1.4;margin:8px 0}
     <div class="stars" id="stars"></div>
     <h1>Die Fabrik läuft wieder!</h1>
     <p id="winText"></p>
+    <div id="review"></div>
     <button class="btn main" id="againBtn">🔄 Nochmal spielen</button>
     <button class="btn" id="topicBtn">📋 Anderes Thema</button>
     <button class="btn" id="shopBtn2">🔧 Robis Werkstatt</button>
@@ -225,7 +230,7 @@ p{font-size:17px;line-height:1.4;margin:8px 0}
     return row.items.filter(function (it) { return it.id === id; })[0] || row.items[0];
   }
   /* bank = Zahnräder auf dem Konto, own = gekaufte Teile, wear = was Robi gerade trägt. */
-  var store = { best: {}, mute: false, bank: 0, own: [], wear: {}, lvl: {} };
+  var store = { best: {}, mute: false, bank: 0, own: [], wear: {}, lvl: {}, again: {} };
   try {
     var raw = JSON.parse(localStorage.getItem(SAVE));
     if (raw && typeof raw === 'object') {
@@ -237,6 +242,20 @@ p{font-size:17px;line-height:1.4;margin:8px 0}
       if (raw.lvl && typeof raw.lvl === 'object') {
         Object.keys(raw.lvl).forEach(function (k) { var v = Math.floor(Number(raw.lvl[k])); if (v >= 1 && v <= 5) store.lvl[k] = v; });
       }
+    }
+  } catch (e) {}
+  /* Eine gespeicherte Aufgabe wird nur übernommen, wenn sie vollständig und stimmig ist. */
+  function validQ(q) {
+    return !!q && typeof q === 'object' && [q.text, q.exp, q.tip, q.full].every(function (v) { return typeof v === 'string' && v.length < 200; }) &&
+      Array.isArray(q.opts) && q.opts.length === 3 && q.opts.every(function (v) { return typeof v === 'number' && v === Math.floor(v) && v > 0; }) &&
+      q.opts.indexOf(q.ans) >= 0 && q.opts[0] !== q.opts[1] && q.opts[0] !== q.opts[2] && q.opts[1] !== q.opts[2];
+  }
+  function plainQ(q) { return { text: q.text, ans: q.ans, opts: q.opts.slice(), exp: q.exp, tip: q.tip, full: q.full }; }
+  try {
+    if (raw && raw.again && typeof raw.again === 'object') {
+      Object.keys(raw.again).forEach(function (k) {
+        if (Array.isArray(raw.again[k])) store.again[k] = raw.again[k].filter(validQ).map(plainQ).slice(-6);
+      });
     }
   } catch (e) {}
   function owns(it) { return it.cost === 0 || store.own.indexOf(it.id) >= 0; }
@@ -352,14 +371,14 @@ p{font-size:17px;line-height:1.4;margin:8px 0}
   /* Tipp zum Einmaleins über eine leichtere Nachbaraufgabe. */
   function malTip(a, b) {
     var order = [10, 2, 5, 4, 9, 3, 6, 7, 8], pre = '', h;
-    if (order.indexOf(b) < order.indexOf(a)) { h = a; a = b; b = h; pre = 'Tausche: ' + a + ' · ' + b + '. '; }
+    if (order.indexOf(b) < order.indexOf(a)) { pre = a + ' · ' + b + ' ist dasselbe wie ' + b + ' · ' + a + '. '; h = a; a = b; b = h; }
     if (a === 10) return 'Tipp: ' + pre + 'Mal 10 heißt: eine Null anhängen.';
     if (a === 2) return 'Tipp: ' + pre + 'Das ist das Doppelte von ' + b + '.';
-    if (a === 5) return 'Tipp: ' + pre + '10 · ' + b + ' = ' + (10 * b) + '. Nimm davon die Hälfte.';
-    if (a === 4) return 'Tipp: ' + pre + '2 · ' + b + ' = ' + (2 * b) + '. Verdopple das noch einmal.';
-    if (a === 9) return 'Tipp: ' + pre + '10 · ' + b + ' = ' + (10 * b) + '. Zieh einmal ' + b + ' ab.';
-    if (a === 3) return 'Tipp: ' + pre + '2 · ' + b + ' = ' + (2 * b) + '. Dann noch einmal ' + b + ' dazu.';
-    return 'Tipp: ' + pre + '5 · ' + b + ' = ' + (5 * b) + '. Dann noch ' + (a === 6 ? 'einmal ' : (a - 5) + '-mal ') + b + ' dazu.';
+    if (a === 5) return 'Tipp: ' + pre + 'Rechne erst 10 · ' + b + ' = ' + (10 * b) + '. Nimm davon die Hälfte.';
+    if (a === 4) return 'Tipp: ' + pre + 'Rechne erst 2 · ' + b + ' = ' + (2 * b) + '. Verdopple das noch einmal.';
+    if (a === 9) return 'Tipp: ' + pre + 'Rechne erst 10 · ' + b + ' = ' + (10 * b) + '. Zieh dann einmal ' + b + ' ab.';
+    if (a === 3) return 'Tipp: ' + pre + 'Rechne erst 2 · ' + b + ' = ' + (2 * b) + '. Dann noch einmal ' + b + ' dazu.';
+    return 'Tipp: ' + pre + 'Rechne erst 5 · ' + b + ' = ' + (5 * b) + '. Dann noch ' + (a === 6 ? 'einmal ' : (a - 5) + '-mal ') + b + ' dazu.';
   }
   /* Schrittweise rechnen: y wird in Hunderter, Zehner und Einer zerlegt. sign = 1 für plus, -1 für minus. */
   function stepwise(x, y, sign) {
@@ -674,8 +693,6 @@ p{font-size:17px;line-height:1.4;margin:8px 0}
     ['Ein halbes Jahr = ? Monate', 6, [5, 3, 50, 2], 'Ein Jahr hat 12 Monate. Die Hälfte davon sind 6 Monate.', 'Tipp: Ein Jahr hat 12 Monate. Nimm die Hälfte.'],
     ['Ein Vierteljahr = ? Monate', 3, [4, 6, 25, 2], 'Ein Jahr hat 12 Monate. Ein Viertel davon sind 3 Monate.', 'Tipp: Ein Jahr hat 12 Monate. Teile durch 4.']
   ];
-  var WRONG = ['🤔 Noch nicht ganz. Versuch es noch einmal!', '🤔 Fast! Rechne in Ruhe noch einmal nach.',
-    '🤔 Das passt noch nicht. Probier eine andere Zahl!'];
 
   /* ---------- Level ---------- */
   function buildLevel() {
@@ -880,18 +897,48 @@ p{font-size:17px;line-height:1.4;margin:8px 0}
       solved: 0, first: 0, gears: 0, parts: [], zap: null, winT: 0,
       streak: 0, nextPower: 0, power: { shield: false, magnet: false, double: false },
       /* skill = Schwierigkeit 1 bis 5, steigt mit richtigen Antworten. Start: eine Stufe unter der zuletzt erreichten. */
-      skill: saved ? Math.max(1, saved - 1) : 1, used: {}
+      skill: saved ? Math.max(1, saved - 1) : 1, used: {},
+      missed: [],                                             /* Aufgaben, die in diesem Spiel nicht gleich klappten */
+      again: (store.again[topic] || []).slice(0, 2)           /* höchstens 2 Aufgaben vom letzten Mal */
     };
-    setQ(g.L.stations[0], nextQ(g));
+    setQ(g.L.stations[0], nextQ(g, g.L.stations[0]));
     return g;
   }
   function stufe(g) { return Math.max(1, Math.min(5, Math.floor(g.skill))); }
   /* Neue Aufgabe in der aktuellen Stufe, möglichst keine doppelt im selben Spiel. */
-  function nextQ(g) {
-    var q, n = 0;
+  function nextQ(g, o) {
+    var q, n = 0, i;
+    if (o.isBoss) {                          /* der Endgegner fragt zuerst, was vorhin schwerfiel */
+      for (i = 0; i < g.missed.length; i++) {
+        if (!g.missed[i].asked) { g.missed[i].asked = true; return replay(g.missed[i], 'replay'); }
+      }
+    } else if ((o.idx === 1 || o.idx === 3) && g.again.length) {      /* Aufgaben vom letzten Spiel */
+      q = replay(g.again.shift(), 'again');
+      g.used[q.text] = true;
+      return q;
+    }
     do { q = GEN[g.topic](stufe(g)); } while (g.used[q.text] && ++n < 50);
     g.used[q.text] = true;
     return q;
+  }
+  /* Dieselbe Aufgabe noch einmal stellen: Antworten neu gemischt, mit Merker „again“ oder „replay“. */
+  function replay(q, flag) {
+    var c = plainQ(q);
+    shuffle(c.opts); c[flag] = true;
+    return c;
+  }
+  /* Merkliste pro Thema für das nächste Spiel (höchstens 6, die ältesten fallen heraus). */
+  function remember(q) {
+    var list = store.again[G.topic] || (store.again[G.topic] = []);
+    if (list.some(function (v) { return v.text === q.text; })) return;
+    list.push(plainQ(q));
+    while (list.length > 6) list.shift();
+    persist();
+  }
+  function forget(q) {
+    var list = store.again[G.topic] || [];
+    store.again[G.topic] = list.filter(function (v) { return v.text !== q.text; });
+    persist();
   }
   /* Aufgabe an eine Station oder den Endgegner hängen und die drei Blöcke beschriften. */
   function setQ(o, q) {
@@ -970,14 +1017,21 @@ p{font-size:17px;line-height:1.4;margin:8px 0}
     if (b.state !== 'open' || o.locked) { sfx.thud(); return; }
     if (b.value !== o.q.ans) {
       b.state = 'wrong'; b.shake = 0.4;
-      if (o.tries === 0) G.skill = Math.max(1, G.skill - 1);        /* nach einem Fehler wird es leichter */
-      o.msg = WRONG[o.tries % WRONG.length]; o.tries++;
+      if (o.tries === 0) {
+        G.skill = Math.max(1, G.skill - 1);                 /* nach einem Fehler wird es leichter */
+        if (!o.q.replay) { G.missed.push(o.q); remember(o.q); }
+      }
+      o.msg = (o.tries === 0 ? '🤔 Noch nicht ganz. ' : '🤔 Fast! ') + o.q.tip;       /* gezielter Tipp statt Lösung */
+      o.tries++;
       G.streak = 0;
       sfx.wrong();
       return;
     }
     b.state = 'right';
-    if (o.tries === 0) { G.first++; G.streak++; G.skill = Math.min(5, G.skill + 0.5); }   /* alle zwei Treffer eine Stufe schwerer */
+    if (o.tries === 0) {
+      G.first++; G.streak++; G.skill = Math.min(5, G.skill + 0.5);     /* alle zwei Treffer eine Stufe schwerer */
+      if (o.q.again) forget(o.q);                           /* Aufgabe vom letzten Mal gleich gelöst: abgehakt */
+    }
     sfx.right();
     burst(b.x + b.w / 2, b.y, 14, ['#ffd54a', '#5ad17a', '#ffffff']);
     o.blocks.forEach(function (c) { if (c !== b && c.state === 'open') c.state = 'locked'; });
@@ -997,7 +1051,8 @@ p{font-size:17px;line-height:1.4;margin:8px 0}
       o.solved = true; G.solved++;
       o.msg = '✅ Richtig! ' + o.q.exp;
       G.power.magnet = false; G.power.double = false;     /* halten bis zur nächsten gelösten Station */
-      setQ(G.L.stations[o.idx + 1] || G.L.boss, nextQ(G));   /* die nächste Aufgabe richtet sich nach der neuen Stufe */
+      var nx = G.L.stations[o.idx + 1] || G.L.boss;
+      setQ(nx, nextQ(G, nx));   /* die nächste Aufgabe richtet sich nach der neuen Stufe */
     }
     if (G.streak >= 3 && !o.dead) { G.streak = 0; o.msg += ' ' + grantPower(); }
   }
@@ -1132,7 +1187,7 @@ p{font-size:17px;line-height:1.4;margin:8px 0}
     if (B.wait > 0 && !B.dead) {
       B.wait -= dt;
       if (B.wait <= 0) {
-        setQ(B, nextQ(G)); B.msg = ''; B.locked = false;
+        setQ(B, nextQ(G, B)); B.msg = ''; B.locked = false;
       }
     }
 
@@ -1573,6 +1628,8 @@ p{font-size:17px;line-height:1.4;margin:8px 0}
     if (!on) return;
     var msg = cur.msg;
     if (!msg && cur.idx === 0) msg = 'Spring von unten gegen die richtige Zahl!';
+    if (!msg && cur.q.again) msg = '🔁 Diese Aufgabe kennst du vom letzten Mal. Jetzt klappt sie bestimmt!';
+    if (!msg && cur.q.replay) msg = '🔁 Noch einmal: Diese Aufgabe war vorhin knifflig.';
     if (!msg && cur.isBoss && cur.hp === BOSS_HP) msg = 'Der Schrott-Roboter! Triff 3-mal die richtige Zahl.';
     setText('question', cur.q.text);
     setText('feedback', msg);
@@ -1583,6 +1640,7 @@ p{font-size:17px;line-height:1.4;margin:8px 0}
     $('win').hidden = name !== 'win';
     $('shop').hidden = name !== 'shop';
     $('hud').hidden = name !== 'play';
+    $('streak').hidden = name !== 'play';
     $('pad').hidden = !(name === 'play' && touch);
     if (name !== 'play') $('banner').hidden = true;
   }
@@ -1618,7 +1676,17 @@ p{font-size:17px;line-height:1.4;margin:8px 0}
       $('stars').appendChild(s);
     }
     $('winText').textContent = 'Super gemacht! ' + G.first + ' von ' + total + ' Aufgaben hast du gleich beim ersten Versuch gelöst. ' +
-      'Dabei hast du ' + G.gears + ' Zahnräder gesammelt. In der Werkstatt hast du jetzt ' + store.bank + '.';
+      'Du hast Stufe ' + stufe(G) + ' von 5 erreicht und ' + G.gears + ' Zahnräder gesammelt. In der Werkstatt hast du jetzt ' + store.bank + '.';
+    /* Rückblick: was nicht gleich klappte, mit Lösung */
+    var review = $('review'), head = document.createElement('b');
+    review.innerHTML = '';
+    head.textContent = G.missed.length ? 'Diese Aufgaben waren knifflig:' : '🌟 Alle Aufgaben beim ersten Versuch gelöst – stark!';
+    review.appendChild(head);
+    G.missed.slice(0, 5).forEach(function (q) {
+      var item = document.createElement('span');
+      item.textContent = q.full;
+      review.appendChild(item);
+    });
     screen('win');
     $('againBtn').focus();
   }

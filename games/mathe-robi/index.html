@@ -62,11 +62,27 @@ p{font-size:17px;line-height:1.4;margin:8px 0}
 .btn.main{background:#ff8a1f;border-color:#ff8a1f;color:#fff}
 .btn:focus-visible,.pill:focus-visible{outline:4px solid #16324f;outline-offset:2px}
 .stars{font-size:54px;letter-spacing:6px;line-height:1.1}
+.shophead{display:flex;align-items:center;justify-content:center;gap:14px;margin:4px 0 8px}
+#preview{width:120px;height:132px;flex:none;border-radius:18px;background:linear-gradient(#cfe8fb,#eef7fd)}
+.shophead p{margin:4px 0;text-align:left}
+.bank{font-size:22px;font-weight:700}
+#shopMsg{min-height:44px;font-size:15px}
+.part{text-align:left;margin-top:8px}
+.part h2{margin:0 0 6px;font-size:17px}
+.items{display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:8px}
+.item{font:inherit;font-weight:700;font-size:15px;color:#16324f;background:#fff;border:3px solid #b9dcf5;border-radius:14px;
+  padding:6px 4px;min-height:58px;cursor:pointer}
+.item small{display:block;font-weight:400;font-size:13px;margin-top:2px}
+.item .dot{display:inline-block;width:14px;height:14px;border-radius:50%;border:2px solid rgba(0,0,0,.35);vertical-align:-2px;margin-right:4px}
+.item.have{background:#eef7fd}
+.item.on{background:#d8f5d2;border-color:#4caf50}
+.item.dear{opacity:.6}
+.item:focus-visible{outline:4px solid #16324f;outline-offset:2px}
 .stars .off{opacity:.2}
 .keys{font-size:15px;color:#4a6078}
 [hidden]{display:none!important}
 @media (max-width:430px){.pill{font-size:14px;padding:6px 10px}.hud{gap:5px}}
-@media (max-height:430px){.card{padding:12px 18px}.intro,.keys{display:none}#question{font-size:22px;padding:3px 16px}
+@media (max-height:430px){.card{padding:12px 18px}.intro,.keys{display:none}h1{font-size:22px}#question{font-size:22px;padding:3px 16px}
   .btn{min-height:46px;padding:8px 10px;font-size:17px}.group .btn{min-height:40px;padding:5px 8px;font-size:16px}.group .list{gap:6px}p{font-size:15px;margin:5px 0}.stars{font-size:40px}}
 </style>
 </head>
@@ -95,6 +111,7 @@ p{font-size:17px;line-height:1.4;margin:8px 0}
     <div class="top">
       <a class="pill" href="../../">🏠 Alle Spiele</a>
       <h1>🤖 Robi in der Zahlenfabrik</h1>
+      <button class="pill" id="shopBtn">🔧 Werkstatt <span id="shopBank"></span></button>
     </div>
     <p class="intro">Die Maschinen stehen still! Hilf Robi: Spring von unten gegen den Block mit der richtigen Zahl.
       <b>Was möchtest du üben?</b></p>
@@ -143,7 +160,23 @@ p{font-size:17px;line-height:1.4;margin:8px 0}
     <p id="winText"></p>
     <button class="btn main" id="againBtn">🔄 Nochmal spielen</button>
     <button class="btn" id="topicBtn">📋 Anderes Thema</button>
+    <button class="btn" id="shopBtn2">🔧 Robis Werkstatt</button>
     <a class="btn" href="../../">🏠 Alle Spiele</a>
+  </section>
+</div>
+
+<div class="overlay" id="shop" hidden>
+  <section class="card">
+    <h1>🔧 Robis Werkstatt</h1>
+    <div class="shophead">
+      <canvas id="preview"></canvas>
+      <div>
+        <p class="bank" id="bank"></p>
+        <p id="shopMsg" aria-live="polite"></p>
+      </div>
+    </div>
+    <div id="shopList"></div>
+    <button class="btn main" id="shopBack">◀ Zurück</button>
   </section>
 </div>
 
@@ -166,11 +199,47 @@ p{font-size:17px;line-height:1.4;margin:8px 0}
   var $ = function (id) { return document.getElementById(id); };
 
   /* ---------- Speicherstand ---------- */
-  var store = { best: {}, mute: false };
+  /* Teile für Robis Werkstatt. Farben: [Körper, Arme, Kopf, Rand]. Der erste Eintrag jeder Reihe ist der Standard. */
+  var SHOP = [
+    { part: 'farbe', title: '🎨 Farbe', items: [
+      { id: 'orange', name: 'Orange', cost: 0, c: ['#ffb703', '#fb8500', '#ffd166', '#7a3d00'] },
+      { id: 'blau', name: 'Blau', cost: 30, c: ['#4cc9f0', '#2196c9', '#b0e9fb', '#0b4a6b'] },
+      { id: 'gruen', name: 'Grün', cost: 30, c: ['#6fd36a', '#3aa63a', '#bdeeb8', '#1d5a1d'] },
+      { id: 'rosa', name: 'Rosa', cost: 40, c: ['#ff8fc1', '#e0559a', '#ffc9e1', '#8a1f57'] },
+      { id: 'lila', name: 'Lila', cost: 40, c: ['#b388ff', '#8052d6', '#dccbff', '#40218a'] },
+      { id: 'gold', name: 'Gold', cost: 150, c: ['#ffd700', '#e0a800', '#fff2a8', '#8a6200'] }
+    ] },
+    { part: 'hut', title: '🎩 Hut', items: [
+      { id: 'ohne', name: 'Ohne', cost: 0 }, { id: 'kappe', name: '🧢 Kappe', cost: 25 }, { id: 'zylinder', name: '🎩 Zylinder', cost: 50 },
+      { id: 'helm', name: '⛑️ Helm', cost: 60 }, { id: 'krone', name: '👑 Krone', cost: 120 }
+    ] },
+    { part: 'antenne', title: '📡 Antenne', items: [
+      { id: 'kugel', name: '🔴 Kugel', cost: 0 }, { id: 'stern', name: '⭐ Stern', cost: 25 }, { id: 'herz', name: '❤️ Herz', cost: 35 },
+      { id: 'propeller', name: '🚁 Propeller', cost: 80 }
+    ] }
+  ];
+  function shopItem(part, id) {
+    var row = SHOP.filter(function (r) { return r.part === part; })[0];
+    return row.items.filter(function (it) { return it.id === id; })[0] || row.items[0];
+  }
+  /* bank = Zahnräder auf dem Konto, own = gekaufte Teile, wear = was Robi gerade trägt. */
+  var store = { best: {}, mute: false, bank: 0, own: [], wear: {} };
   try {
     var raw = JSON.parse(localStorage.getItem(SAVE));
-    if (raw && typeof raw === 'object') { store.best = raw.best || {}; store.mute = !!raw.mute; }
+    if (raw && typeof raw === 'object') {
+      if (raw.best && typeof raw.best === 'object') store.best = raw.best;
+      store.mute = !!raw.mute;
+      store.bank = Math.max(0, Math.floor(Number(raw.bank)) || 0);
+      if (Array.isArray(raw.own)) store.own = raw.own.filter(function (v) { return typeof v === 'string'; });
+      if (raw.wear && typeof raw.wear === 'object') store.wear = raw.wear;
+    }
   } catch (e) {}
+  function owns(it) { return it.cost === 0 || store.own.indexOf(it.id) >= 0; }
+  /* Robi trägt nur, was es gibt und was gekauft ist – sonst den Standard. */
+  SHOP.forEach(function (row) {
+    var it = shopItem(row.part, store.wear[row.part]);
+    store.wear[row.part] = owns(it) ? it.id : row.items[0].id;
+  });
   function persist() { try { localStorage.setItem(SAVE, JSON.stringify(store)); } catch (e) {} }
 
   /* ---------- Ton ---------- */
@@ -1048,7 +1117,9 @@ p{font-size:17px;line-height:1.4;margin:8px 0}
     ctx.beginPath(); ctx.arc(x + 60, GY - 226 + bob, 5, 0, Math.PI * 2); ctx.fillStyle = '#ffb703'; ctx.fill();
   }
 
+  var HAT_H = { ohne: 0, kappe: 5, zylinder: 14, helm: 6, krone: 8 };
   function drawRobi(p) {
+    var c = shopItem('farbe', store.wear.farbe).c, hat = store.wear.hut, ant = store.wear.antenne, i;
     ctx.save();
     ctx.translate(p.x + p.w / 2, p.y + p.h);
     if (p.dead > 0) { ctx.translate(0, -20); ctx.rotate((0.7 - p.dead) * 8); ctx.translate(0, 20); }
@@ -1059,18 +1130,56 @@ p{font-size:17px;line-height:1.4;margin:8px 0}
     ctx.fillStyle = '#2a323d';
     rr(-11 + f1, -7 - up, 10, 7, 3); ctx.fill();
     rr(1 + f2, -7 - up, 10, 7, 3); ctx.fill();
-    box(-14, -22 + (run ? Math.sin(ph) * 2 : 0), 5, 11, 2, '#fb8500', '#7a3d00', 1.5);
-    box(-11, -27, 22, 21, 5, '#ffb703', '#7a3d00', 2);
+    box(-14, -22 + (run ? Math.sin(ph) * 2 : 0), 5, 11, 2, c[1], c[3], 1.5);
+    box(-11, -27, 22, 21, 5, c[0], c[3], 2);
     box(-5, -22, 12, 8, 2, '#1d3557');
     ctx.fillStyle = Math.floor(G.time * 2) % 2 ? '#4dff88' : '#4cc9f0'; ctx.fillRect(-3, -20, 3, 4);
     ctx.fillStyle = '#ff5d5d'; ctx.fillRect(2, -20, 3, 4);
-    box(9, -22 + (run ? -Math.sin(ph) * 2 : 0) - (grounded ? 0 : 6), 5, 11, 2, '#fb8500', '#7a3d00', 1.5);
-    ctx.strokeStyle = '#7a3d00'; ctx.lineWidth = 2;
-    ctx.beginPath(); ctx.moveTo(-3, -43); ctx.lineTo(-3, -50); ctx.stroke();
-    ctx.beginPath(); ctx.arc(-3, -52, 3.5, 0, Math.PI * 2); ctx.fillStyle = '#ff5d5d'; ctx.fill();
-    box(-12, -44, 24, 18, 6, '#ffd166', '#7a3d00', 2);
+    box(9, -22 + (run ? -Math.sin(ph) * 2 : 0) - (grounded ? 0 : 6), 5, 11, 2, c[1], c[3], 1.5);
+    /* Antenne: sitzt auf dem Kopf oder oben auf dem Hut */
+    var ay = -43 - (HAT_H[hat] || 0);
+    ctx.strokeStyle = c[3]; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(-3, ay + 2); ctx.lineTo(-3, ay - 7); ctx.stroke();
+    if (ant === 'stern') {
+      ctx.beginPath();
+      for (i = 0; i < 10; i++) {
+        var sr = i % 2 ? 2.8 : 6.5, sa = -Math.PI / 2 + i * Math.PI / 5;
+        ctx.lineTo(-3 + Math.cos(sa) * sr, ay - 10 + Math.sin(sa) * sr);
+      }
+      ctx.closePath(); ctx.fillStyle = '#ffe14a'; ctx.fill(); ctx.strokeStyle = '#a8750a'; ctx.lineWidth = 1.5; ctx.stroke();
+    } else if (ant === 'herz') {
+      ctx.fillStyle = '#ff4d6d';
+      ctx.beginPath(); ctx.arc(-6, ay - 11, 3.4, 0, Math.PI * 2); ctx.arc(0, ay - 11, 3.4, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath(); ctx.moveTo(-9.2, ay - 9.6); ctx.lineTo(3.2, ay - 9.6); ctx.lineTo(-3, ay - 3.5); ctx.fill();
+    } else if (ant === 'propeller') {
+      var pw = Math.cos(G.time * 18) * 11;
+      ctx.strokeStyle = '#4cc9f0'; ctx.lineWidth = 3.5; ctx.lineCap = 'round';
+      ctx.beginPath(); ctx.moveTo(-3 - pw, ay - 8); ctx.lineTo(-3 + pw, ay - 8); ctx.stroke(); ctx.lineCap = 'butt';
+      ctx.beginPath(); ctx.arc(-3, ay - 8, 2.5, 0, Math.PI * 2); ctx.fillStyle = '#2a323d'; ctx.fill();
+    } else {
+      ctx.beginPath(); ctx.arc(-3, ay - 9, 3.5, 0, Math.PI * 2); ctx.fillStyle = '#ff5d5d'; ctx.fill();
+    }
+    box(-12, -44, 24, 18, 6, c[2], c[3], 2);
     box(-6, -40, 17, 10, 3, '#1d3557');
     if ((G.time % 3.2) > 0.12) { ctx.fillStyle = '#7df9ff'; ctx.fillRect(0, -38, 3, 5); ctx.fillRect(6, -38, 3, 5); }
+    if (hat === 'kappe') {
+      box(-12, -50, 24, 9, 5, '#e63946', '#7d1420', 2);
+      box(6, -45, 13, 4, 2, '#e63946', '#7d1420', 1.5);
+    } else if (hat === 'zylinder') {
+      box(-9, -58, 18, 14, 2, '#22223b', '#0d0d1a', 2);
+      ctx.fillStyle = '#e63946'; ctx.fillRect(-9, -49, 18, 3);
+      box(-15, -46, 30, 4, 2, '#22223b', '#0d0d1a', 1.5);
+    } else if (hat === 'helm') {
+      box(-12, -51, 24, 9, 6, '#ffd60a', '#8a6200', 2);
+      ctx.fillStyle = '#fff3b0'; ctx.fillRect(-2, -50, 4, 6);
+      box(-15, -45, 30, 4, 2, '#ffd60a', '#8a6200', 1.5);
+    } else if (hat === 'krone') {
+      ctx.beginPath();
+      ctx.moveTo(-11, -43); ctx.lineTo(-11, -53); ctx.lineTo(-6, -48); ctx.lineTo(0, -55); ctx.lineTo(6, -48); ctx.lineTo(11, -53); ctx.lineTo(11, -43);
+      ctx.closePath(); ctx.fillStyle = '#ffd700'; ctx.fill(); ctx.strokeStyle = '#8a6200'; ctx.lineWidth = 1.5; ctx.stroke();
+      ctx.fillStyle = '#e63946'; ctx.fillRect(-1.5, -48, 3, 3);
+      ctx.fillStyle = '#4cc9f0'; ctx.fillRect(-8, -46.5, 2.5, 2.5); ctx.fillRect(5.5, -46.5, 2.5, 2.5);
+    }
     ctx.restore();
   }
 
@@ -1132,6 +1241,7 @@ p{font-size:17px;line-height:1.4;margin:8px 0}
   function screen(name) {
     $('start').hidden = name !== 'start';
     $('win').hidden = name !== 'win';
+    $('shop').hidden = name !== 'shop';
     $('hud').hidden = name !== 'play';
     $('pad').hidden = !(name === 'play' && touch);
     if (name !== 'play') $('banner').hidden = true;
@@ -1142,6 +1252,7 @@ p{font-size:17px;line-height:1.4;margin:8px 0}
       b.querySelector('small').textContent = starText(store.best[b.getAttribute('data-topic')] || 0);
     });
     $('keys').hidden = touch;
+    $('shopBank').textContent = '⚙️ ' + store.bank;
     G = newGame('mal', 'start');
     screen('start');
   }
@@ -1156,6 +1267,7 @@ p{font-size:17px;line-height:1.4;margin:8px 0}
     var total = STATIONS + BOSS_HP, stars = G.first >= total - 1 ? 3 : G.first >= 8 ? 2 : 1;
     G.mode = 'win';
     store.best[G.topic] = Math.max(store.best[G.topic] || 0, stars);
+    store.bank += G.gears;
     persist();
     $('stars').innerHTML = '';
     for (var i = 0; i < 3; i++) {
@@ -1164,10 +1276,72 @@ p{font-size:17px;line-height:1.4;margin:8px 0}
       $('stars').appendChild(s);
     }
     $('winText').textContent = 'Super gemacht! ' + G.first + ' von ' + total + ' Aufgaben hast du gleich beim ersten Versuch gelöst. ' +
-      'Dabei hast du ' + G.gears + ' Zahnräder gesammelt.';
+      'Dabei hast du ' + G.gears + ' Zahnräder gesammelt. In der Werkstatt hast du jetzt ' + store.bank + '.';
     screen('win');
     $('againBtn').focus();
   }
+
+  /* ---------- Robis Werkstatt ---------- */
+  var shopFrom = 'start', pv = $('preview'), pctx = pv.getContext('2d');
+  function shopFill() {
+    $('bank').textContent = '⚙️ ' + store.bank + ' Zahnräder';
+    $('shopBank').textContent = '⚙️ ' + store.bank;
+    var list = $('shopList');
+    list.innerHTML = '';
+    SHOP.forEach(function (row) {
+      var part = document.createElement('div'), h = document.createElement('h2'), items = document.createElement('div');
+      part.className = 'part'; items.className = 'items'; h.textContent = row.title;
+      row.items.forEach(function (it) {
+        var b = document.createElement('button'), info = document.createElement('small');
+        var have = owns(it), on = store.wear[row.part] === it.id;
+        b.className = 'item' + (on ? ' on' : have ? ' have' : store.bank < it.cost ? ' dear' : '');
+        if (it.c) { var dot = document.createElement('span'); dot.className = 'dot'; dot.style.background = it.c[0]; b.appendChild(dot); }
+        b.appendChild(document.createTextNode(it.name));
+        info.textContent = on ? '✓ an' : have ? 'anziehen' : '⚙️ ' + it.cost;
+        b.appendChild(info);
+        b.setAttribute('data-item', it.id);
+        b.addEventListener('click', function () { shopPick(row.part, it); });
+        items.appendChild(b);
+      });
+      part.appendChild(h); part.appendChild(items); list.appendChild(part);
+    });
+  }
+  function shopPick(part, it) {
+    if (!owns(it)) {
+      if (store.bank < it.cost) {
+        $('shopMsg').textContent = 'Dafür fehlen dir noch ' + (it.cost - store.bank) + ' Zahnräder. Spiel noch eine Runde!';
+        return;
+      }
+      store.bank -= it.cost; store.own.push(it.id);
+      audioOn(); sfx.right();
+      $('shopMsg').textContent = 'Gekauft! Das steht Robi gut.';
+    } else $('shopMsg').textContent = '';
+    store.wear[part] = it.id;
+    persist();
+    shopFill();
+    var again = document.querySelector('[data-item="' + it.id + '"]');
+    if (again) again.focus();
+  }
+  function showShop(from) {
+    shopFrom = from;
+    $('shopMsg').textContent = 'Sammle Zahnräder im Spiel und kauf damit neue Teile für Robi.';
+    shopFill();
+    screen('shop');
+  }
+  /* Große Vorschau: Robi wird mit derselben Zeichen-Funktion auf ein eigenes Bild gemalt. */
+  function drawPreview() {
+    var dpr = Math.min(window.devicePixelRatio || 1, 2), w = 120, h = 132, main = ctx;
+    if (pv.width !== w * dpr) { pv.width = w * dpr; pv.height = h * dpr; }
+    ctx = pctx;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.clearRect(0, 0, w, h);
+    ctx.setTransform(dpr * 1.8, 0, 0, dpr * 1.8, 0, 0);
+    drawRobi({ x: w / 3.6 - 13, y: h / 1.8 - 43, w: 26, h: 40, vx: 0, face: 1, onGround: true, coy: 1, inv: 0, dead: 0 });
+    ctx = main;
+  }
+  $('shopBtn').addEventListener('click', function () { showShop('start'); });
+  $('shopBtn2').addEventListener('click', function () { showShop('win'); });
+  $('shopBack').addEventListener('click', function () { if (shopFrom === 'win') screen('win'); else showStart(); });
 
   /* ---------- Steuerung ---------- */
   var KEYS = { ArrowLeft: 'left', a: 'left', A: 'left', ArrowRight: 'right', d: 'right', D: 'right' };
@@ -1220,6 +1394,7 @@ p{font-size:17px;line-height:1.4;margin:8px 0}
     last = now; acc += dt;
     while (acc >= STEP) { update(STEP); acc -= STEP; }
     draw();
+    if (!$('shop').hidden) drawPreview();
     if (G.mode === 'play') hud();
     requestAnimationFrame(frame);
   }

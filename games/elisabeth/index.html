@@ -1,0 +1,996 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Elisabeth von Thüringen - 3D Religions-Abenteuer (3. Klasse)</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            user-select: none;
+            -webkit-user-select: none;
+            -webkit-touch-callout: none;
+            font-family: 'Comic Sans MS', 'Trebuchet MS', sans-serif;
+        }
+        html, body {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            touch-action: none;
+            background-color: #87CEEB;
+        }
+        #game-canvas {
+            width: 100vw;
+            height: 100vh;
+            display: block;
+        }
+        /* Kopfbereich (HUD) */
+        #hud {
+            position: absolute;
+            top: 12px;
+            left: 12px;
+            right: 12px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 8px;
+            pointer-events: none;
+            z-index: 5;
+        }
+        .hud-box {
+            background: rgba(255, 255, 255, 0.94);
+            border: 3px solid #d97706;
+            border-radius: 18px;
+            padding: 8px 16px;
+            box-shadow: 0 5px 12px rgba(0,0,0,0.2);
+            font-size: 1.05rem;
+            color: #451a03;
+            font-weight: bold;
+            white-space: nowrap;
+        }
+        /* Steuerungs-Hinweis unten (Desktop) */
+        #controls-hint {
+            position: absolute;
+            bottom: 18px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(255, 255, 255, 0.92);
+            border: 3px solid #15803d;
+            border-radius: 15px;
+            padding: 9px 20px;
+            font-size: 1rem;
+            color: #14532d;
+            text-align: center;
+            pointer-events: none;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+            z-index: 5;
+            max-width: 90%;
+        }
+        /* Mobile Steuerkreuz (D-Pad Pfeiltasten) */
+        #mobile-dpad {
+            display: none;
+            position: absolute;
+            bottom: 22px;
+            left: 22px;
+            width: 168px;
+            height: 168px;
+            z-index: 6;
+            pointer-events: auto;
+        }
+        .dpad-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 52px);
+            grid-template-rows: repeat(3, 52px);
+            gap: 6px;
+            width: 100%;
+            height: 100%;
+        }
+        .dpad-btn {
+            background: rgba(255, 255, 255, 0.88);
+            border: 3px solid #b45309;
+            border-radius: 15px;
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: #78350f;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 4px 0 #92400e, 0 6px 12px rgba(0,0,0,0.25);
+            cursor: pointer;
+            touch-action: none;
+            padding: 0;
+        }
+        .dpad-btn:active, .dpad-btn.active {
+            background: #f59e0b;
+            color: white;
+            transform: translateY(3px);
+            box-shadow: 0 1px 0 #92400e;
+        }
+        /* Link zurück zur Spiele-Übersicht */
+        #home-link {
+            position: absolute;
+            top: 66px;
+            left: 12px;
+            z-index: 6;
+            background: rgba(255, 255, 255, 0.9);
+            border: 3px solid #d97706;
+            border-radius: 14px;
+            padding: 5px 11px;
+            font-size: 0.9rem;
+            font-weight: bold;
+            color: #451a03;
+            text-decoration: none;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+        }
+        a.action-btn {
+            display: inline-block;
+            text-decoration: none;
+            margin: 6px;
+            background: #fff7ed;
+            color: #92400e;
+        }
+        .dpad-empty {
+            visibility: hidden;
+        }
+        /* Modals */
+        #quiz-modal, #start-modal, #end-modal {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: #fffbeb;
+            border: 6px solid #b45309;
+            border-radius: 25px;
+            padding: 26px;
+            width: 92%;
+            max-width: 620px;
+            max-height: 90vh;
+            overflow-y: auto;
+            box-shadow: 0 15px 35px rgba(0,0,0,0.45);
+            text-align: center;
+            z-index: 10;
+        }
+        #quiz-modal, #end-modal {
+            display: none;
+        }
+        .topic-badge {
+            display: inline-block;
+            background: #fef3c7;
+            border: 2px solid #f59e0b;
+            color: #92400e;
+            padding: 4px 14px;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            font-weight: bold;
+            margin-bottom: 8px;
+        }
+        h1, h2 {
+            color: #92400e;
+            margin-top: 4px;
+            margin-bottom: 12px;
+        }
+        p {
+            font-size: 1.15rem;
+            color: #451a03;
+            line-height: 1.45;
+            margin: 10px 0;
+        }
+        .options-grid {
+            display: flex;
+            flex-direction: column;
+            gap: 11px;
+            margin-top: 18px;
+        }
+        button.option-btn, .action-btn {
+            background: #f59e0b;
+            color: white;
+            border: 3px solid #b45309;
+            border-radius: 15px;
+            padding: 13px 18px;
+            font-size: 1.1rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: transform 0.1s, background 0.2s;
+            box-shadow: 0 4px 0 #92400e;
+        }
+        button.option-btn:hover, button.action-btn:hover {
+            background: #d97706;
+            transform: translateY(-2px);
+        }
+        button.option-btn:active, button.action-btn:active {
+            transform: translateY(2px);
+            box-shadow: 0 1px 0 #92400e;
+        }
+        #feedback {
+            margin-top: 14px;
+            font-size: 1.12rem;
+            font-weight: bold;
+            min-height: 28px;
+        }
+        .correct { color: #15803d; }
+        .wrong { color: #b91c1c; }
+
+        @media (max-width: 600px) {
+            .hud-box {
+                font-size: 0.92rem;
+                padding: 6px 11px;
+            }
+            #quiz-modal, #start-modal, #end-modal {
+                padding: 18px;
+            }
+            h1, h2 {
+                font-size: 1.35rem;
+            }
+            p {
+                font-size: 1rem;
+            }
+            button.option-btn, button.action-btn {
+                font-size: 1rem;
+                padding: 11px 14px;
+            }
+            #controls-hint {
+                font-size: 0.85rem;
+                padding: 7px 12px;
+                bottom: 12px;
+                left: auto;
+                right: 12px;
+                transform: none;
+                max-width: calc(100vw - 210px);
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <canvas id="game-canvas"></canvas>
+
+    <!-- HUD -->
+    <div id="hud">
+        <div class="hud-box">🌹 Rosen-Punkte: <span id="score">0</span> / 12</div>
+        <div class="hud-box">🏰 Stationen: <span id="progress">0</span> / 12</div>
+    </div>
+
+    <a id="home-link" href="../../">🏠 Alle Spiele</a>
+
+    <div id="controls-hint">
+        🖱 <b>Tippe/Klicke auf die Wiese</b> oder nutze die <b>Pfeiltasten / WASD</b>, um Elisabeth zu allen <b>12 goldenen Stationen</b> zu führen!
+    </div>
+
+    <!-- Mobile Pfeiltasten (D-Pad) -->
+    <div id="mobile-dpad">
+        <div class="dpad-grid">
+            <div class="dpad-empty"></div>
+            <button class="dpad-btn" id="btn-up" aria-label="Nach oben">▲</button>
+            <div class="dpad-empty"></div>
+            <button class="dpad-btn" id="btn-left" aria-label="Nach links">◀</button>
+            <div class="dpad-empty"></div>
+            <button class="dpad-btn" id="btn-right" aria-label="Nach rechts">▶</button>
+            <div class="dpad-empty"></div>
+            <button class="dpad-btn" id="btn-down" aria-label="Nach unten">▼</button>
+            <div class="dpad-empty"></div>
+        </div>
+    </div>
+
+    <!-- Startbildschirm -->
+    <div id="start-modal">
+        <h1>🏰 Großes Elisabeth-Quiz (3. Klasse)</h1>
+        <p>Begleite <b>Elisabeth von Thüringen</b> auf einer Reise durch ihr ganzes Leben – von ihrer Kindheit bis zu ihrem Wirken in Marburg!</p>
+        <p>Besuche alle <b>12 Stationen</b> in der 3D-Welt und werde zum Profi für den Religionsunterricht.</p>
+        <button class="action-btn" onclick="startGame()">Abenteuer starten! 🚀</button>
+        <a class="action-btn" href="../../">🏠 Alle Spiele</a>
+    </div>
+
+    <!-- Quiz-Fenster -->
+    <div id="quiz-modal">
+        <div class="topic-badge" id="station-topic">Thema</div>
+        <h2 id="station-title">Station 1</h2>
+        <p id="question-text">Hier steht die Frage.</p>
+        <div class="options-grid" id="options-container"></div>
+        <div id="feedback"></div>
+    </div>
+
+    <!-- Endbildschirm -->
+    <div id="end-modal">
+        <h1>🎉 Herzlichen Glückwunsch! 🎉</h1>
+        <p id="final-score-text"></p>
+        <p>Du kennst jetzt alle wichtigen Geschichten und Bedeutungen rund um die Heilige Elisabeth von Thüringen!</p>
+        <button class="action-btn" onclick="location.reload()">Nochmal spielen 🔄</button>
+        <a class="action-btn" href="../../">🏠 Alle Spiele</a>
+    </div>
+
+    <script>
+        // --- AUTOMATISCHE DEVICE-ERKENNUNG (MOBILE vs. DESKTOP) ---
+        function detectMobileDevice() {
+            const hasTouch = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
+            const mobileUA = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+            const smallScreen = window.innerWidth <= 900 && hasTouch;
+            return mobileUA || smallScreen;
+        }
+
+        const isMobileDevice = detectMobileDevice();
+
+        function applyDeviceControls() {
+            const dpad = document.getElementById('mobile-dpad');
+            const hint = document.getElementById('controls-hint');
+            if (isMobileDevice) {
+                dpad.style.display = 'block';
+                hint.innerHTML = '📱 Nutze die <b>Pfeiltasten unten links</b> oder <b>tippe auf die Wiese</b>!';
+            } else {
+                dpad.style.display = 'none';
+                hint.innerHTML = '🖱 <b>Tippe/Klicke auf die Wiese</b> oder nutze die <b>Pfeiltasten / WASD</b>, um Elisabeth zu allen <b>12 goldenen Stationen</b> zu führen!';
+            }
+        }
+
+        // --- 12 KLASSENARBEITS-FRAGEN (RELIGION 3. KLASSE) ---
+        const stationsData = [
+            {
+                topic: "Biografie: Herkunft",
+                title: "Station 1: Woher kam Elisabeth?",
+                x: -14, z: 12,
+                question: "Elisabeth war eine echte Königstochter. Aus welchem Land kam sie als Kind nach Thüringen?",
+                options: [
+                    "Aus Ungarn",
+                    "Aus Spanien",
+                    "Aus Schweden"
+                ],
+                correct: 0,
+                explanation: "Richtig! Sie wurde als Prinzessin in Ungarn geboren und kam schon mit 4 Jahren nach Thüringen."
+            },
+            {
+                topic: "Biografie: Leben auf der Burg",
+                title: "Station 2: Die Wartburg",
+                x: -7, z: 13,
+                question: "Auf welcher großen Burg lebte Elisabeth als Erwachsene mit ihrem Mann?",
+                options: [
+                    "Auf der Wartburg",
+                    "Auf Schloss Neuschwanstein",
+                    "Auf der Zugspitze"
+                ],
+                correct: 0,
+                explanation: "Genau! Auf der Wartburg bei Eisenach lebte sie als Landgräfin."
+            },
+            {
+                topic: "Biografie: Familie",
+                title: "Station 3: Ihr Ehemann Ludwig",
+                x: 0, z: 11,
+                question: "Wie hieß Elisabeths Ehemann, der sie bei ihrer Hilfe für die Armen unterstützte?",
+                options: [
+                    "Landgraf Ludwig",
+                    "König Artus",
+                    "Kaiser Barbarossa"
+                ],
+                correct: 0,
+                explanation: "Super! Landgraf Ludwig liebte Elisabeth sehr und erlaubte ihr, den Armen zu helfen."
+            },
+            {
+                topic: "Glaube & Vorbild",
+                title: "Station 4: Die Krone in der Kirche",
+                x: 8, z: 12,
+                question: "Warum nahm Elisabeth in der Kirche ihre goldene Krone vom Kopf und legte sie ab?",
+                options: [
+                    "Weil ihr die Krone zu schwer und unbequem war",
+                    "Weil sie vor Jesus am Kreuz nicht als reiche Königin stehen wollte",
+                    "Weil sie die Krone verschenken wollte"
+                ],
+                correct: 1,
+                explanation: "Richtig! Vor Jesus, der eine Dornenkrone trug, wollte sie keine teure Goldkrone tragen."
+            },
+            {
+                topic: "Nächstenliebe im Alltag",
+                title: "Station 5: Hilfe für die Armen",
+                x: 14, z: 6,
+                question: "Wie half Elisabeth den armen und hungernden Menschen unterhalb der Burg?",
+                options: [
+                    "Sie verteilte Brote, Kleider und Geld an sie",
+                    "Sie lud alle zum Ritterturnier ein",
+                    "Sie schickte sie in ein anderes Land"
+                ],
+                correct: 0,
+                explanation: "Genau! Sie gab den Armen zu essen und teilte ihren Reichtum."
+            },
+            {
+                topic: "Bekannte Legende",
+                title: "Station 6: Das Rosenwunder",
+                x: 13, z: -2,
+                question: "Elisabeth trug heimlich Brote unter ihrem Mantel. Was geschah, als sie ihren Mantel öffnen musste?",
+                options: [
+                    "Die Brote waren plötzlich verschwunden",
+                    "Im Korb lagen wunderschöne rote Rosen",
+                    "Die Brote wurden zu Goldmünzen"
+                ],
+                correct: 1,
+                explanation: "Wunderbar! Aus den Broten wurden Rosen – das nennt man das Rosenwunder."
+            },
+            {
+                topic: "Bekannte Legende",
+                title: "Station 7: Der Kranke im Bett",
+                x: 6, z: -4,
+                question: "Wen legte Elisabeth einmal in ihr eigenes Bett, um ihn zu pflegen?",
+                options: [
+                    "Einen schwer kranken, aussätzigen Mann",
+                    "Einen verirrten Wanderer",
+                    "Einen müden Ritter"
+                ],
+                correct: 0,
+                explanation: "Richtig! In dieser Geschichte erkannte ihr Mann in dem Kranken das Bild von Jesus."
+            },
+            {
+                topic: "Taten der Liebe",
+                title: "Station 8: Das Hospital",
+                x: -1, z: -2,
+                question: "Was ließ Elisabeth am Fuß der Wartburg extra für kranke und schwache Menschen bauen?",
+                options: [
+                    "Ein Hospital (Krankenhaus)",
+                    "Eine große Schule",
+                    "Ein Rathaus"
+                ],
+                correct: 0,
+                explanation: "Super! In diesem Hospital pflegte sie die Kranken sogar selbst."
+            },
+            {
+                topic: "Biografie: Schicksalsschlag",
+                title: "Station 9: Abschied von der Burg",
+                x: -9, z: 0,
+                question: "Warum verließ Elisabeth nach einigen Jahren die Wartburg?",
+                options: [
+                    "Ihr Mann Ludwig starb und seine Familie war gegen ihre Großzügigkeit",
+                    "Die Burg wurde durch ein Feuer zerstört",
+                    "Sie wollte eine Weltreise machen"
+                ],
+                correct: 0,
+                explanation: "Richtig! Nach Ludwigs Tod musste sie mit ihren drei Kindern die Burg verlassen."
+            },
+            {
+                topic: "Biografie: Lebensende",
+                title: "Station 10: Ihr Weg nach Marburg",
+                x: -14, z: -7,
+                question: "In welche Stadt zog Elisabeth später, wo sie bis zu ihrem Tod für Kranke sorgte?",
+                options: [
+                    "Nach Marburg",
+                    "Nach Berlin",
+                    "Nach München"
+                ],
+                correct: 0,
+                explanation: "Genau! In Marburg gründete sie wieder ein Hospital und lebte ganz einfach."
+            },
+            {
+                topic: "Religiöse Bedeutung",
+                title: "Station 11: Vorbild Jesus",
+                x: -5, z: -9,
+                question: "Warum wird Elisabeth in der Kirche als „Heilige“ verehrt?",
+                options: [
+                    "Weil sie eine mächtige Prinzessin war",
+                    "Weil sie wie Jesus gelebt und Nächstenliebe gezeigt hat",
+                    "Weil sie besonders viele Burgen besaß"
+                ],
+                correct: 1,
+                explanation: "Perfekt! Heilige sind Menschen, die anderen zeigen, wie man nach Gottes Willen liebt und hilft."
+            },
+            {
+                topic: "Kirchenjahr & Transfer",
+                title: "Station 12: Der Elisabeth-Tag",
+                x: 5, z: -10,
+                question: "Wann feiern wir jedes Jahr das Fest der Heiligen Elisabeth?",
+                options: [
+                    "Am 19. November",
+                    "Am 24. Dezember",
+                    "Am Ostersonntag"
+                ],
+                correct: 0,
+                explanation: "Klasse! Am 19. November denken wir an Elisabeth und teilen miteinander."
+            }
+        ];
+
+        // --- EIGENSTÄNDIGE 3D-ENGINE (OHNE EXTERNE DATEIEN) ---
+        const canvas = document.getElementById('game-canvas');
+        const ctx = canvas.getContext('2d');
+        let width, height;
+
+        function resizeCanvas() {
+            width = canvas.width = window.innerWidth;
+            height = canvas.height = window.innerHeight;
+            applyDeviceControls();
+        }
+        window.addEventListener('resize', resizeCanvas);
+        resizeCanvas();
+
+        // Spielzustand
+        let player = { x: -16, z: 15, targetX: null, targetZ: null, walkAnim: 0 };
+        let cam = { x: -16, z: 15 };
+        let completedStations = new Set();
+        let score = 0;
+        let isGameActive = false;
+        let isModalOpen = false;
+        const keys = {};
+
+        // 3D-Projektion (Perspektive)
+        function project3D(wx, wy, wz) {
+            const dx = wx - cam.x;
+            const dz = wz - cam.z;
+
+            // Kamera-Neigung (38 Grad)
+            const cosA = 0.78;
+            const sinA = 0.62;
+
+            const ry = wy * cosA - dz * sinA;
+            const rz = wy * sinA + dz * cosA + 22;
+
+            if (rz <= 1) return null;
+
+            const fov = Math.min(width, height) * 0.85;
+            const scale = fov / rz;
+
+            return {
+                x: width / 2 + dx * scale,
+                y: height / 2 - ry * scale,
+                scale: scale,
+                depth: rz
+            };
+        }
+
+        // Bäume & Deko generieren
+        const trees = [
+            [-18, 16], [-19, 3], [-18, -11], [-10, -14], [12, -13],
+            [18, -8], [18, 2], [17, 14], [3, 4], [-4, 6], [9, 3], [-8, -5]
+        ];
+
+        // Maus- & Touch-Steuerung auf Wiese (Inverse Projektion)
+        function screenToWorld(sx, sy) {
+            const fov = Math.min(width, height) * 0.85;
+            const cosA = 0.78;
+            const sinA = 0.62;
+
+            const normY = (height / 2 - sy) / fov;
+            const denom = sinA + normY * cosA;
+            if (Math.abs(denom) < 0.05) return null;
+
+            const dz = (22 * normY) / denom;
+            const rz = dz * cosA + 22;
+            if (rz <= 2) return null;
+
+            const scale = fov / rz;
+            const dx = (sx - width / 2) / scale;
+
+            return {
+                x: Math.max(-19, Math.min(19, cam.x + dx)),
+                z: Math.max(-13, Math.min(17, cam.z + dz))
+            };
+        }
+
+        canvas.addEventListener('pointerdown', (e) => {
+            if (!isGameActive || isModalOpen) return;
+            const pos = screenToWorld(e.clientX, e.clientY);
+            if (pos) {
+                player.targetX = pos.x;
+                player.targetZ = pos.z;
+            }
+        });
+
+        // Tastatur-Steuerung (Desktop)
+        window.addEventListener('keydown', (e) => {
+            keys[e.code] = true;
+            player.targetX = null;
+            player.targetZ = null;
+        });
+        window.addEventListener('keyup', (e) => {
+            keys[e.code] = false;
+        });
+
+        // Mobile Pfeiltasten (D-Pad) Bindings
+        function bindDpadButton(btnId, keyCode) {
+            const btn = document.getElementById(btnId);
+            if (!btn) return;
+
+            const press = (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                keys[keyCode] = true;
+                player.targetX = null;
+                player.targetZ = null;
+                btn.classList.add('active');
+            };
+            const release = (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                keys[keyCode] = false;
+                btn.classList.remove('active');
+            };
+
+            btn.addEventListener('pointerdown', press);
+            btn.addEventListener('pointerup', release);
+            btn.addEventListener('pointerleave', release);
+            btn.addEventListener('pointercancel', release);
+        }
+
+        bindDpadButton('btn-up', 'ArrowUp');
+        bindDpadButton('btn-down', 'ArrowDown');
+        bindDpadButton('btn-left', 'ArrowLeft');
+        bindDpadButton('btn-right', 'ArrowRight');
+
+        // --- ZEICHENFUNKTIONEN ---
+        function drawGround() {
+            // Himmel
+            const skyGrad = ctx.createLinearGradient(0, 0, 0, height * 0.5);
+            skyGrad.addColorStop(0, '#38bdf8');
+            skyGrad.addColorStop(1, '#bae6fd');
+            ctx.fillStyle = skyGrad;
+            ctx.fillRect(0, 0, width, height);
+
+            // Große grüne Wiese
+            // Hinteren Rand begrenzen, damit er nicht hinter der Kamera liegt
+            const farZ = Math.max(-24, cam.z - 25);
+            const corners = [
+                project3D(-60, 0, farZ),
+                project3D(60, 0, farZ),
+            ];
+            if (corners.every(c => c !== null)) {
+                // Vorne bis zum unteren Bildschirmrand auffüllen
+                corners.push({ x: width + 10, y: height + 10 }, { x: -10, y: height + 10 });
+                ctx.beginPath();
+                ctx.moveTo(corners[0].x, corners[0].y);
+                corners.forEach(c => ctx.lineTo(c.x, c.y));
+                ctx.closePath();
+                ctx.fillStyle = '#4ade80';
+                ctx.fill();
+                ctx.lineWidth = 4;
+                ctx.strokeStyle = '#16a34a';
+                ctx.stroke();
+            }
+
+            // Sandweg entlang der 12 Stationen
+            ctx.beginPath();
+            stationsData.forEach((st, idx) => {
+                const p = project3D(st.x, 0.02, st.z);
+                if (p) {
+                    if (idx === 0) ctx.moveTo(p.x, p.y);
+                    else ctx.lineTo(p.x, p.y);
+                }
+            });
+            ctx.strokeStyle = '#fde68a';
+            ctx.lineWidth = 22;
+            ctx.lineCap = 'round';
+            ctx.lineJoin = 'round';
+            ctx.stroke();
+        }
+
+        function drawCastle() {
+            const base = project3D(0, 0, -19);
+            if (!base) return;
+            const s = base.scale;
+
+            // Hauptbau der Wartburg
+            ctx.fillStyle = '#e7e5e4';
+            ctx.fillRect(base.x - 6.5 * s, base.y - 4.5 * s, 13 * s, 4.5 * s);
+            ctx.strokeStyle = '#78716c';
+            ctx.lineWidth = 2;
+            ctx.strokeRect(base.x - 6.5 * s, base.y - 4.5 * s, 13 * s, 4.5 * s);
+
+            // Fachwerk-Balken
+            ctx.fillStyle = '#78350f';
+            ctx.fillRect(base.x - 6.5 * s, base.y - 2.4 * s, 13 * s, 0.35 * s);
+
+            // Rotes Dach
+            ctx.beginPath();
+            ctx.moveTo(base.x - 7.2 * s, base.y - 4.5 * s);
+            ctx.lineTo(base.x, base.y - 7.5 * s);
+            ctx.lineTo(base.x + 7.2 * s, base.y - 4.5 * s);
+            ctx.closePath();
+            ctx.fillStyle = '#dc2626';
+            ctx.fill();
+
+            // Bergfried (Turm links)
+            ctx.fillStyle = '#d6d3d1';
+            ctx.fillRect(base.x - 9.2 * s, base.y - 7.5 * s, 2.6 * s, 7.5 * s);
+            ctx.strokeRect(base.x - 9.2 * s, base.y - 7.5 * s, 2.6 * s, 7.5 * s);
+
+            // Turmdach
+            ctx.beginPath();
+            ctx.moveTo(base.x - 9.6 * s, base.y - 7.5 * s);
+            ctx.lineTo(base.x - 7.9 * s, base.y - 10.2 * s);
+            ctx.lineTo(base.x - 6.2 * s, base.y - 7.5 * s);
+            ctx.closePath();
+            ctx.fillStyle = '#b91c1c';
+            ctx.fill();
+
+            // Schild "WARTBURG"
+            ctx.fillStyle = '#451a03';
+            ctx.font = `bold ${Math.max(10, 0.75 * s)}px sans-serif`;
+            ctx.textAlign = 'center';
+            ctx.fillText('WARTBURG', base.x, base.y - 3 * s);
+        }
+
+        function drawTree(wx, wz) {
+            const p = project3D(wx, 0, wz);
+            if (!p) return;
+            const s = p.scale;
+
+            // Schatten
+            ctx.beginPath();
+            ctx.ellipse(p.x, p.y, 1.1 * s, 0.5 * s, 0, 0, Math.PI * 2);
+            ctx.fillStyle = 'rgba(0,0,0,0.18)';
+            ctx.fill();
+
+            // Stamm
+            ctx.fillStyle = '#78350f';
+            ctx.fillRect(p.x - 0.25 * s, p.y - 1.5 * s, 0.5 * s, 1.5 * s);
+
+            // Krone
+            ctx.beginPath();
+            ctx.moveTo(p.x - 1.4 * s, p.y - 1.3 * s);
+            ctx.lineTo(p.x, p.y - 4.2 * s);
+            ctx.lineTo(p.x + 1.4 * s, p.y - 1.3 * s);
+            ctx.closePath();
+            ctx.fillStyle = '#15803d';
+            ctx.fill();
+        }
+
+        function drawStation(st, idx, time) {
+            const p = project3D(st.x, 0, st.z);
+            if (!p) return;
+            const s = p.scale;
+            const isDone = completedStations.has(idx);
+
+            // Leuchtender Bodenring
+            ctx.beginPath();
+            ctx.ellipse(p.x, p.y, 1.15 * s, 0.65 * s, 0, 0, Math.PI * 2);
+            ctx.fillStyle = isDone ? 'rgba(34, 197, 94, 0.35)' : 'rgba(250, 204, 21, 0.45)';
+            ctx.fill();
+            ctx.lineWidth = 3;
+            ctx.strokeStyle = isDone ? '#16a34a' : '#f59e0b';
+            ctx.stroke();
+
+            // Schwebende Rose / Kristall
+            const bob = Math.sin(time * 4 + idx) * 0.22;
+            const gemY = p.y - (1.4 + bob) * s;
+
+            ctx.beginPath();
+            ctx.arc(p.x, gemY, 0.45 * s, 0, Math.PI * 2);
+            ctx.fillStyle = isDone ? '#22c55e' : '#e11d48';
+            ctx.fill();
+            ctx.lineWidth = 2;
+            ctx.strokeStyle = '#ffffff';
+            ctx.stroke();
+
+            // Stationsnummer
+            ctx.fillStyle = '#ffffff';
+            ctx.font = `bold ${Math.max(11, 0.55 * s)}px sans-serif`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(isDone ? '✓' : (idx + 1), p.x, gemY);
+        }
+
+        function drawPlayer(time) {
+            const p = project3D(player.x, 0, player.z);
+            if (!p) return;
+            const s = p.scale;
+            const bounce = Math.abs(Math.sin(player.walkAnim)) * 0.18 * s;
+
+            // Schatten
+            ctx.beginPath();
+            ctx.ellipse(p.x, p.y, 0.75 * s, 0.38 * s, 0, 0, Math.PI * 2);
+            ctx.fillStyle = 'rgba(0,0,0,0.25)';
+            ctx.fill();
+
+            // Blaues Kleid
+            ctx.beginPath();
+            ctx.moveTo(p.x - 0.65 * s, p.y - bounce);
+            ctx.lineTo(p.x, p.y - 1.85 * s - bounce);
+            ctx.lineTo(p.x + 0.65 * s, p.y - bounce);
+            ctx.closePath();
+            ctx.fillStyle = '#2563eb';
+            ctx.fill();
+            ctx.strokeStyle = '#1e3a8a';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+
+            // Roter Mantel-Umhang
+            ctx.beginPath();
+            ctx.moveTo(p.x - 0.5 * s, p.y - 0.3 * s - bounce);
+            ctx.lineTo(p.x, p.y - 1.75 * s - bounce);
+            ctx.lineTo(p.x + 0.5 * s, p.y - 0.3 * s - bounce);
+            ctx.closePath();
+            ctx.fillStyle = '#dc2626';
+            ctx.fill();
+
+            // Kopf
+            ctx.beginPath();
+            ctx.arc(p.x, p.y - 2.1 * s - bounce, 0.42 * s, 0, Math.PI * 2);
+            ctx.fillStyle = '#fde68a';
+            ctx.fill();
+            ctx.strokeStyle = '#b45309';
+            ctx.stroke();
+
+            // Goldene Krone
+            ctx.fillStyle = '#facc15';
+            ctx.beginPath();
+            ctx.moveTo(p.x - 0.28 * s, p.y - 2.45 * s - bounce);
+            ctx.lineTo(p.x - 0.28 * s, p.y - 2.75 * s - bounce);
+            ctx.lineTo(p.x - 0.1 * s, p.y - 2.58 * s - bounce);
+            ctx.lineTo(p.x, p.y - 2.8 * s - bounce);
+            ctx.lineTo(p.x + 0.1 * s, p.y - 2.58 * s - bounce);
+            ctx.lineTo(p.x + 0.28 * s, p.y - 2.75 * s - bounce);
+            ctx.lineTo(p.x + 0.28 * s, p.y - 2.45 * s - bounce);
+            ctx.closePath();
+            ctx.fill();
+
+            // Zielpunkt-Markierung bei Touch/Klick
+            if (player.targetX !== null && player.targetZ !== null) {
+                const tp = project3D(player.targetX, 0, player.targetZ);
+                if (tp) {
+                    ctx.beginPath();
+                    ctx.arc(tp.x, tp.y, 0.35 * tp.scale, 0, Math.PI * 2);
+                    ctx.strokeStyle = '#ffffff';
+                    ctx.lineWidth = 3;
+                    ctx.stroke();
+                }
+            }
+        }
+
+        // --- SPIELLOGIK ---
+        function startGame() {
+            document.getElementById('start-modal').style.display = 'none';
+            isGameActive = true;
+        }
+
+        function openStation(index) {
+            isModalOpen = true;
+            player.targetX = null;
+            player.targetZ = null;
+            // Alle gedrückten Tasten zurücksetzen, damit Figur beim Schließen nicht weiterläuft
+            Object.keys(keys).forEach(k => keys[k] = false);
+            document.querySelectorAll('.dpad-btn').forEach(b => b.classList.remove('active'));
+
+            const st = stationsData[index];
+
+            document.getElementById('station-topic').innerText = st.topic;
+            document.getElementById('station-title').innerText = st.title;
+            document.getElementById('question-text').innerText = st.question;
+            document.getElementById('feedback').innerText = "";
+
+            const optionsContainer = document.getElementById('options-container');
+            optionsContainer.innerHTML = "";
+
+            st.options.forEach((optText, optIndex) => {
+                const btn = document.createElement('button');
+                btn.className = 'option-btn';
+                btn.innerText = optText;
+                btn.onclick = () => checkAnswer(index, optIndex, btn);
+                optionsContainer.appendChild(btn);
+            });
+
+            document.getElementById('quiz-modal').style.display = 'block';
+        }
+
+        function checkAnswer(stationIndex, selectedOption, btnElement) {
+            const st = stationsData[stationIndex];
+            const feedbackEl = document.getElementById('feedback');
+            const allButtons = document.querySelectorAll('.option-btn');
+
+            if (selectedOption === st.correct) {
+                allButtons.forEach(b => b.disabled = true);
+                btnElement.style.background = "#16a34a";
+                btnElement.style.borderColor = "#14532d";
+
+                feedbackEl.className = "correct";
+                feedbackEl.innerText = "🌟 " + st.explanation;
+
+                if (!completedStations.has(stationIndex)) {
+                    completedStations.add(stationIndex);
+                    score++;
+                    document.getElementById('score').innerText = score;
+                    document.getElementById('progress').innerText = completedStations.size;
+                }
+
+                setTimeout(() => {
+                    document.getElementById('quiz-modal').style.display = 'none';
+                    isModalOpen = false;
+
+                    if (completedStations.size === stationsData.length) {
+                        showEndScreen();
+                    }
+                }, 2200);
+            } else {
+                btnElement.style.background = "#dc2626";
+                btnElement.style.borderColor = "#7f1d1d";
+                btnElement.disabled = true;
+                feedbackEl.className = "wrong";
+                feedbackEl.innerText = "❌ Nicht ganz! Lies noch einmal genau und probiere eine andere Antwort.";
+            }
+        }
+
+        function showEndScreen() {
+            isGameActive = false;
+            document.getElementById('final-score-text').innerText =
+                `Du hast alle ${stationsData.length} Stationen gemeistert und ${score} von ${stationsData.length} Rosen-Punkten gesammelt!`;
+            document.getElementById('end-modal').style.display = 'block';
+        }
+
+        function update() {
+            if (!isGameActive || isModalOpen) return;
+
+            const speed = 0.13;
+            let moveX = 0;
+            let moveZ = 0;
+
+            if (keys['ArrowUp'] || keys['KeyW']) moveZ -= 1;
+            if (keys['ArrowDown'] || keys['KeyS']) moveZ += 1;
+            if (keys['ArrowLeft'] || keys['KeyA']) moveX -= 1;
+            if (keys['ArrowRight'] || keys['KeyD']) moveX += 1;
+
+            let isMoving = false;
+
+            if (moveX !== 0 || moveZ !== 0) {
+                const len = Math.hypot(moveX, moveZ);
+                player.x += (moveX / len) * speed;
+                player.z += (moveZ / len) * speed;
+                isMoving = true;
+            } else if (player.targetX !== null && player.targetZ !== null) {
+                const dx = player.targetX - player.x;
+                const dz = player.targetZ - player.z;
+                const dist = Math.hypot(dx, dz);
+
+                if (dist > 0.2) {
+                    player.x += (dx / dist) * speed;
+                    player.z += (dz / dist) * speed;
+                    isMoving = true;
+                } else {
+                    player.targetX = null;
+                    player.targetZ = null;
+                }
+            }
+
+            if (isMoving) {
+                player.walkAnim += 0.22;
+            } else {
+                player.walkAnim = 0;
+            }
+
+            // Spielfeld-Grenzen
+            player.x = Math.max(-18, Math.min(18, player.x));
+            player.z = Math.max(-12, Math.min(16, player.z));
+
+            // Sanfte Kamera-Verfolgung
+            cam.x += (player.x - cam.x) * 0.08;
+            cam.z += (player.z - cam.z) * 0.08;
+
+            // Kollision mit Stationen prüfen
+            stationsData.forEach((st, idx) => {
+                if (!completedStations.has(idx)) {
+                    const dist = Math.hypot(player.x - st.x, player.z - st.z);
+                    if (dist < 1.35) {
+                        openStation(idx);
+                    }
+                }
+            });
+        }
+
+        function render() {
+            const time = Date.now() * 0.001;
+            ctx.clearRect(0, 0, width, height);
+
+            drawGround();
+            drawCastle();
+
+            // Alle 3D-Objekte nach Tiefe sortieren (Maler-Algorithmus)
+            const renderList = [];
+            trees.forEach(([tx, tz]) => {
+                renderList.push({ z: tz, draw: () => drawTree(tx, tz) });
+            });
+            stationsData.forEach((st, idx) => {
+                renderList.push({ z: st.z, draw: () => drawStation(st, idx, time) });
+            });
+            renderList.push({ z: player.z, draw: () => drawPlayer(time) });
+
+            renderList.sort((a, b) => a.z - b.z);
+            renderList.forEach(item => item.draw());
+
+            update();
+            requestAnimationFrame(render);
+        }
+
+        render();
+    </script>
+</body>
+</html>

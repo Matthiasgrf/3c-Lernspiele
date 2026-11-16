@@ -80,8 +80,9 @@ p{font-size:17px;line-height:1.4;margin:8px 0}
 .item:focus-visible{outline:4px solid #16324f;outline-offset:2px}
 .stars .off{opacity:.2}
 .keys{font-size:15px;color:#4a6078}
+#streak{position:absolute;right:calc(10px + env(safe-area-inset-right));top:calc(50px + env(safe-area-inset-top));font-size:15px;padding:5px 11px}
 [hidden]{display:none!important}
-@media (max-width:430px){.pill{font-size:14px;padding:6px 10px}.hud{gap:5px}}
+@media (max-width:430px){.pill{font-size:14px;padding:6px 10px}.hud{gap:5px}#streak{font-size:13px;top:calc(46px + env(safe-area-inset-top))}}
 @media (max-height:430px){.card{padding:12px 18px}.intro,.keys{display:none}h1{font-size:22px}#question{font-size:22px;padding:3px 16px}
   .btn{min-height:46px;padding:8px 10px;font-size:17px}.group .btn{min-height:40px;padding:5px 8px;font-size:16px}.group .list{gap:6px}p{font-size:15px;margin:5px 0}.stars{font-size:40px}}
 </style>
@@ -95,6 +96,7 @@ p{font-size:17px;line-height:1.4;margin:8px 0}
     <span class="pill" id="progress"></span>
     <span class="pill" id="gears"></span>
     <button class="pill" id="mute" aria-label="Ton an oder aus">🔊</button>
+    <span class="pill" id="streak"></span>
   </div>
   <div id="banner" hidden>
     <div id="question"></div>
@@ -273,6 +275,7 @@ p{font-size:17px;line-height:1.4;margin:8px 0}
     hurt: function () { tone(300, 0.35, 'sawtooth', 0.06, 80); },
     flag: function () { tone(660, 0.08, 'triangle', 0.1); tone(880, 0.14, 'triangle', 0.1, 0, 0.08); },
     zap: function () { tone(900, 0.3, 'sawtooth', 0.06, 100); },
+    power: function () { [659, 784, 988, 1319].forEach(function (f, i) { tone(f, 0.12, 'square', 0.06, 0, i * 0.07); }); },
     win: function () { [523, 659, 784, 1047, 784, 1047].forEach(function (f, i) { tone(f, 0.18, 'triangle', 0.12, 0, i * 0.14); }); }
   };
 
@@ -619,7 +622,8 @@ p{font-size:17px;line-height:1.4;margin:8px 0}
       mode: mode, topic: topic, L: buildLevel(topic), time: 0, cam: 0, fade: 0,
       p: { x: 3 * T, y: GY - 40, w: 26, h: 40, vx: 0, vy: 0, face: 1, onGround: true, floor: null, coy: 0, buf: 0, inv: 0, dead: 0 },
       check: { x: 3 * T, y: GY - 40 }, cur: null,
-      solved: 0, first: 0, gears: 0, parts: [], zap: null, winT: 0
+      solved: 0, first: 0, gears: 0, parts: [], zap: null, winT: 0,
+      streak: 0, nextPower: 0, power: { shield: false, magnet: false, double: false }
     };
   }
 
@@ -695,11 +699,12 @@ p{font-size:17px;line-height:1.4;margin:8px 0}
     if (b.value !== o.q.ans) {
       b.state = 'wrong'; b.shake = 0.4;
       o.msg = WRONG[o.tries % WRONG.length]; o.tries++;
+      G.streak = 0;
       sfx.wrong();
       return;
     }
     b.state = 'right';
-    if (o.tries === 0) G.first++;
+    if (o.tries === 0) { G.first++; G.streak++; }
     sfx.right();
     burst(b.x + b.w / 2, b.y, 14, ['#ffd54a', '#5ad17a', '#ffffff']);
     o.blocks.forEach(function (c) { if (c !== b && c.state === 'open') c.state = 'locked'; });
@@ -718,7 +723,24 @@ p{font-size:17px;line-height:1.4;margin:8px 0}
     } else {
       o.solved = true; G.solved++;
       o.msg = '✅ Richtig! ' + o.q.exp;
+      G.power.magnet = false; G.power.double = false;     /* halten bis zur nächsten gelösten Station */
     }
+    if (G.streak >= 3 && !o.dead) { G.streak = 0; o.msg += ' ' + grantPower(); }
+  }
+
+  /* Serien-Bonus: 3 Aufgaben in Folge beim ersten Versuch richtig → Robi bekommt eine Extra-Kraft. */
+  var POWERS = [
+    { id: 'shield', icon: '🛡️', text: 'einen Schutzschild' },
+    { id: 'magnet', icon: '🧲', text: 'einen Zahnrad-Magneten' },
+    { id: 'double', icon: '⏫', text: 'den Doppelsprung' }
+  ];
+  function grantPower() {
+    var pw, n = 0;
+    do { pw = POWERS[G.nextPower++ % POWERS.length]; } while (G.power[pw.id] && ++n < POWERS.length);
+    G.power[pw.id] = true;
+    sfx.power();
+    burst(G.p.x + 13, G.p.y + 10, 20, ['#fff59d', '#7df9ff', '#ffffff'], 200);
+    return '⭐ 3 in Folge! Robi bekommt ' + pw.text + '.';
   }
 
   function respawn() {
@@ -730,6 +752,11 @@ p{font-size:17px;line-height:1.4;margin:8px 0}
   function hurt() {
     var p = G.p;
     if (p.dead > 0 || p.inv > 0) return;
+    if (G.power.shield) {                    /* der Schutzschild fängt einen Treffer ab */
+      G.power.shield = false; p.inv = 1.5; p.vy = -300;
+      sfx.stomp(); burst(p.x + 13, p.y + 20, 16, ['#7df9ff', '#ffffff'], 220);
+      return;
+    }
     p.dead = 0.7; p.vy = -420; p.vx = 0;
     sfx.hurt();
   }
@@ -772,8 +799,12 @@ p{font-size:17px;line-height:1.4;margin:8px 0}
       if (p.vx < want) p.vx = Math.min(want, p.vx + acc); else if (p.vx > want) p.vx = Math.max(want, p.vx - acc);
       if (dir) p.face = dir;
       if (input.jumpPressed) { p.buf = 0.12; input.jumpPressed = false; }
-      if (p.onGround) p.coy = 0.1;
+      if (p.onGround) { p.coy = 0.1; p.air2 = false; }
       if (p.buf > 0 && p.coy > 0 && G.winT <= 0) { p.vy = -JUMP; p.buf = 0; p.coy = 0; sfx.jump(); }
+      else if (p.buf > 0 && G.power.double && !p.air2 && G.winT <= 0) {      /* Doppelsprung: einmal in der Luft */
+        p.vy = -JUMP * 0.9; p.buf = 0; p.air2 = true; sfx.jump();
+        burst(p.x + 13, p.y + p.h, 6, ['#ffffff', '#cfe8fb'], 80);
+      }
       p.buf -= dt; p.coy -= dt;
       p.vy = Math.min(p.vy + GRAV * dt, 900);
       var belt = (p.onGround && p.floor && p.floor.belt) ? p.floor.belt * 70 : 0;
@@ -788,6 +819,10 @@ p{font-size:17px;line-height:1.4;margin:8px 0}
 
     /* Zahnräder */
     L.gears.forEach(function (g) {
+      if (!g.got && G.power.magnet && p.dead <= 0) {      /* Magnet zieht nahe Zahnräder an */
+        var mx = cx - g.x, my = p.y + 20 - g.y, md = Math.sqrt(mx * mx + my * my);
+        if (md < 140 && md > 1) { g.x += mx / md * 420 * dt; g.y += my / md * 420 * dt; }
+      }
       if (!g.got && Math.abs(g.x - cx) < 24 && Math.abs(g.y - (p.y + 20)) < 30 && p.dead <= 0) {
         g.got = true; G.gears++; sfx.gear();
       }
@@ -1200,6 +1235,11 @@ p{font-size:17px;line-height:1.4;margin:8px 0}
     drawBoss(L.boss);
     L.enemies.forEach(drawEnemy);
     drawRobi(G.p);
+    if (G.power.shield && G.p.dead <= 0) {
+      ctx.beginPath(); ctx.arc(G.p.x + 13, G.p.y + 16, 34 + Math.sin(G.time * 5) * 1.5, 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(125,249,255,.16)'; ctx.fill();
+      ctx.strokeStyle = 'rgba(125,249,255,.9)'; ctx.lineWidth = 2.5; ctx.stroke();
+    }
     G.parts.forEach(function (q) {
       ctx.globalAlpha = Math.min(1, q.life * 2); ctx.fillStyle = q.color;
       ctx.fillRect(q.x - q.size / 2, q.y - q.size / 2, q.size, q.size);
@@ -1228,6 +1268,8 @@ p{font-size:17px;line-height:1.4;margin:8px 0}
     else progress = 'Aufgabe ' + (G.solved + 1) + ' / ' + STATIONS;
     setText('progress', progress);
     setText('gears', '⚙️ ' + G.gears);
+    setText('streak', 'Serie ' + '★★★'.slice(0, G.streak) + '☆☆☆'.slice(G.streak) +
+      POWERS.map(function (pw) { return G.power[pw.id] ? ' ' + pw.icon : ''; }).join(''));
     var on = !!cur && !G.L.goal.hit;
     if ($('banner').hidden === on) $('banner').hidden = !on;
     if (!on) return;
@@ -1401,7 +1443,7 @@ p{font-size:17px;line-height:1.4;margin:8px 0}
 
   resize();
   showStart();
-  if (TEST) window.ROBI = { game: function () { return G; }, input: input, view: view, gen: GEN };
+  if (TEST) window.ROBI = { game: function () { return G; }, input: input, view: view, gen: GEN, bump: bump, hurt: hurt };
   requestAnimationFrame(frame);
 })();
 </script>

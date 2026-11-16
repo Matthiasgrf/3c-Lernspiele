@@ -80,8 +80,9 @@ Startseite, ohne dass man es löschen muss. Die Reihenfolge in der Liste ist die
 `check.js` braucht nur Node. `smoke.js`, `spieltest.js` und `thumbnail.js` brauchen zusätzlich Playwright
 (`npm install` und einmalig `npx playwright install chromium`).
 
-Alle drei Prüfungen laufen bei jedem Push automatisch (GitHub → Actions → „Spiele prüfen“). Der Browser-Test
-spielt die Spiele nicht durch: Spielablauf und End-Bildschirm weiterhin von Hand ansehen.
+Alle drei Prüfungen laufen bei jedem Push automatisch (GitHub → Actions → „Spiele prüfen“). Durchgespielt
+werden nur Spiele mit einer Testdatei in `tools/spieltests/`. Bei allen anderen Spielablauf und End-Bildschirm
+weiterhin von Hand ansehen.
 
 ## Veröffentlichen
 

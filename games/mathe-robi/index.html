@@ -83,6 +83,8 @@ p{font-size:17px;line-height:1.4;margin:8px 0}
 #review b{display:block;margin-bottom:2px}
 #review span{display:inline-block;margin:2px 6px;padding:2px 10px;border-radius:999px;background:#fff;font-weight:700;white-space:nowrap}
 .keys{font-size:15px;color:#4a6078}
+.turn{display:none;font-size:15px;font-weight:700;background:#fff4dc;border-radius:12px;padding:6px 10px}
+@media (orientation:portrait) and (pointer:coarse) and (max-width:600px){.turn{display:block}}
 #streak{position:absolute;right:calc(10px + env(safe-area-inset-right));top:calc(50px + env(safe-area-inset-top));font-size:15px;padding:5px 11px}
 [hidden]{display:none!important}
 @media (max-width:430px){.pill{font-size:14px;padding:6px 10px}.hud{gap:5px}#streak{font-size:13px;top:calc(46px + env(safe-area-inset-top))}}
@@ -119,6 +121,7 @@ p{font-size:17px;line-height:1.4;margin:8px 0}
       <h1>🤖 Robi in der Zahlenfabrik</h1>
       <button class="pill" id="shopBtn">🔧 Werkstatt <span id="shopBank"></span></button>
     </div>
+    <p class="turn">📱 Dreh dein Handy quer – dann ist das Bild größer.</p>
     <p class="intro">Die Maschinen stehen still! Hilf Robi: Spring von unten gegen den Block mit der richtigen Zahl.
       <b>Was möchtest du üben?</b></p>
     <div class="groups">
@@ -230,12 +233,12 @@ p{font-size:17px;line-height:1.4;margin:8px 0}
     return row.items.filter(function (it) { return it.id === id; })[0] || row.items[0];
   }
   /* bank = Zahnräder auf dem Konto, own = gekaufte Teile, wear = was Robi gerade trägt. */
-  var store = { best: {}, mute: false, bank: 0, own: [], wear: {}, lvl: {}, again: {} };
+  var store = { best: {}, mute: false, bank: 0, own: [], wear: {}, lvl: {}, again: {}, music: true };
   try {
     var raw = JSON.parse(localStorage.getItem(SAVE));
     if (raw && typeof raw === 'object') {
       if (raw.best && typeof raw.best === 'object') store.best = raw.best;
-      store.mute = !!raw.mute;
+      store.mute = !!raw.mute; store.music = raw.music !== false;
       store.bank = Math.max(0, Math.floor(Number(raw.bank)) || 0);
       if (Array.isArray(raw.own)) store.own = raw.own.filter(function (v) { return typeof v === 'string'; });
       if (raw.wear && typeof raw.wear === 'object') store.wear = raw.wear;
@@ -329,7 +332,7 @@ p{font-size:17px;line-height:1.4;margin:8px 0}
       }
     } catch (e) {}
   }
-  function musicVolume() { if (music.out) music.out.gain.value = store.mute ? 0 : 1; }
+  function musicVolume() { if (music.out) music.out.gain.value = store.mute || !store.music ? 0 : 1; }
   function musicStart() {
     if (!actx) return;
     try {
@@ -1793,8 +1796,17 @@ p{font-size:17px;line-height:1.4;margin:8px 0}
   });
   $('againBtn').addEventListener('click', function () { startGame(G.topic); });
   $('topicBtn').addEventListener('click', showStart);
-  function muteLabel() { $('mute').textContent = store.mute ? '🔇' : '🔊'; }
-  $('mute').addEventListener('click', function () { store.mute = !store.mute; persist(); muteLabel(); audioOn(); musicVolume(); this.blur(); });
+  /* Ton-Knopf mit drei Zuständen: alles an → nur Geräusche (Musik aus) → alles aus. */
+  function muteLabel() {
+    $('mute').textContent = store.mute ? '🔇' : store.music ? '🔊' : '🔉';
+    $('mute').setAttribute('aria-label', store.mute ? 'Ton aus. Tippen für Ton an.' : store.music ? 'Ton und Musik an. Tippen für Musik aus.' : 'Musik aus. Tippen für Ton aus.');
+  }
+  $('mute').addEventListener('click', function () {
+    if (store.mute) { store.mute = false; store.music = true; }
+    else if (store.music) store.music = false;
+    else store.mute = true;
+    persist(); muteLabel(); audioOn(); musicVolume(); this.blur();
+  });
   muteLabel();
 
   /* ---------- Schleife ---------- */

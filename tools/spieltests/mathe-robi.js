@@ -140,6 +140,30 @@ module.exports = async function (t) {
   await t.shot(page, 'handy-spiel');
   await page.close();
 
+  /* ---------- Ton-Knopf: alles an → nur Geräusche → aus ---------- */
+  page = await go(DESK, '', { mute: false });               /* alter Speicherstand ohne „music“ */
+  await page.click('[data-topic="mal"]');
+  const ton = [];
+  const tonState = async () => { const st = await saved(page) || {}; ton.push((await page.textContent('#mute')) + (st.mute ? ' stumm' : st.music === false ? ' ohne Musik' : ' alles')); };
+  ton.push(await page.textContent('#mute'));
+  await page.click('#mute'); await tonState();
+  const quiet = await page.evaluate(() => ROBI.music.out.gain.value);
+  await page.click('#mute'); await tonState();
+  await page.click('#mute'); await tonState();
+  t.check('Ton-Knopf schaltet in drei Schritten und speichert', ton.join(' → ') === '🔊 → 🔉 ohne Musik → 🔇 stumm → 🔊 alles' && quiet === 0, ton.join(' → '));
+  await page.click('#mute');
+  await page.reload({ waitUntil: 'load' });
+  t.check('Ton-Einstellung bleibt nach dem Neuladen', (await page.textContent('#mute')) === '🔉');
+  await page.close();
+  page = await go({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
+  t.check('Hochformat auf dem Handy: Hinweis zum Drehen sichtbar', await page.isVisible('.turn'));
+  await t.shot(page, 'start-hochformat');
+  await page.close();
+  page = await go(PHONE);
+  t.check('Querformat: kein Hinweis zum Drehen', await page.isHidden('.turn'));
+  await t.shot(page, 'start-querformat');
+  await page.close();
+
   /* ---------- Robis Werkstatt ---------- */
   page = await go(DESK, '', { best: { mal: 2 }, mute: false, bank: 100 });          /* alter Speicherstand ohne own/wear */
   t.check('Werkstatt: alter Speicherstand lädt, Konto wird angezeigt', (await page.textContent('#shopBank')).includes('100'));

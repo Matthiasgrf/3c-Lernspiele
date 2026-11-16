@@ -42,5 +42,12 @@ window.GAMES = [
     description: "Fliege über Deutschland zu den 16 Bundesländern und lerne ihre Flaggen und Hauptstädte.",
     age: "3. Klasse",
     subject: "Sachunterricht"
+  },
+  {
+    id: "weltflug",
+    title: "WeltFlug",
+    description: "Fliege um die ganze Welt zu allen 193 Ländern und lerne ihre Flaggen, Hauptstädte und Sehenswürdigkeiten.",
+    age: "3. Klasse",
+    subject: "Sachunterricht"
   }
 ];

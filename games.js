@@ -25,5 +25,13 @@ window.GAMES = [
     age: "3. Klasse · Sachunterricht",
     path: "games/Sachunterricht-Getreide/",
     thumbnail: "games/Sachunterricht-Getreide/thumbnail.jpg"
+  },
+  {
+    id: "deutschlandflug",
+    title: "DeutschlandFlug",
+    description: "Fliege über Deutschland zu den 16 Bundesländern und lerne ihre Flaggen und Hauptstädte.",
+    age: "3. Klasse · Sachunterricht",
+    path: "games/deutschlandflug/",
+    thumbnail: "games/deutschlandflug/thumbnail.jpg"
   }
 ];

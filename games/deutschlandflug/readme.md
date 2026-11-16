@@ -1,0 +1,18 @@
+# DeutschlandFlug
+
+Flugspiel nach dem Vorbild von EuropaFlug: Mit dem Flugzeug über Deutschland zu allen 16 Bundesländern fliegen,
+in der jeweiligen Hauptstadt landen und zwei Fragen beantworten:
+
+1. Welche Flagge gehört zum Bundesland?
+2. Wie heißt die Hauptstadt? (Bei den Stadtstaaten Berlin, Hamburg und Bremen wird erklärt, dass Stadt und Bundesland zusammenfallen.)
+
+Danach gibt es einen kurzen Wissens-Satz zum Bundesland. Der Spielstand wird im Browser gespeichert (`deutschlandflug_v1`).
+
+Steuerung: Pfeiltasten oder A/D zum Lenken, W schneller, S langsamer, Leertaste landen.
+Auf Tablet/Handy: ◀ ▶ gedrückt halten, 🚀 schneller, Landen-Button antippen.
+
+Hinweise:
+- Grenzen der Bundesländer und Nachbarländer: [Natural Earth](https://www.naturalearthdata.com/) (gemeinfrei), vereinfacht.
+- Die Landesflaggen werden im Spiel selbst gezeichnet. Wappen sind dabei stark vereinfacht.
+- Die Pins von Mainz/Wiesbaden und Berlin/Potsdam sind leicht auseinandergerückt, damit man sie beim Fliegen unterscheiden kann.
+- Braucht Internet (Three.js wird von cdnjs geladen).

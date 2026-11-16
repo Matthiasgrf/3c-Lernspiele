@@ -3,7 +3,10 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Spiele</title>
+<title>Lernspiele der 3c</title>
+<meta name="description" content="Lernspiele für die Grundschule – direkt im Browser, ohne Anmeldung und ohne Werbung.">
+<meta name="theme-color" content="#69b9ee">
+<link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="assets/style.css">
 </head>
 <body>
@@ -12,9 +15,11 @@
   <p>Such dir ein Spiel aus und leg los!</p>
 </header>
 <main>
+  <nav class="filter" id="filter" aria-label="Nach Fach filtern" hidden></nav>
   <div class="grid" id="grid"></div>
+  <noscript><p class="empty">Für die Spiele muss JavaScript im Browser eingeschaltet sein.</p></noscript>
 </main>
-<footer>Läuft direkt im Browser – auf Computer, Tablet und Handy.</footer>
+<footer>Läuft direkt im Browser – auf Computer, Tablet und Handy. Ohne Anmeldung, ohne Werbung.</footer>
 <script src="games.js"></script>
 <script src="assets/home.js"></script>
 </body>

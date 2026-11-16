@@ -49,5 +49,12 @@ window.GAMES = [
     description: "Fliege um die ganze Welt zu allen 193 Ländern und lerne ihre Flaggen, Hauptstädte und Sehenswürdigkeiten.",
     age: "3. Klasse",
     subject: "Erdkunde"
+  },
+  {
+    id: "mathe-robi",
+    title: "Robi in der Zahlenfabrik",
+    description: "Hüpfe mit Roboter Robi durch die Fabrik und löse Aufgaben zu Einmaleins, Teilen, Plus und Minus.",
+    age: "3. Klasse",
+    subject: "Mathe"
   }
 ];

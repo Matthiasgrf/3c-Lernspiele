@@ -41,4 +41,6 @@ Hinweise:
 - Grafik und Töne entstehen im Code, es werden keine Bilder oder fremden Dateien geladen.
 - Neue Abschnitte kommen in `buildLevel` in die Listen `EASY`, `MID` oder `HARD`. Mit `?test&alle` enthält
   das Level alle Abschnitte hintereinander, so lässt sich prüfen, ob jeder schaffbar ist.
+- Durchspiel-Test: `node tools/spieltest.js mathe-robi` (Datei `tools/spieltests/mathe-robi.js`). Bei Änderungen
+  am Spiel den Test mit anpassen.
 - Für automatische Tests: Mit `?test` in der Adresse ist der Spielzustand als `window.ROBI` erreichbar.

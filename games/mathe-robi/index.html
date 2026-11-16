@@ -1529,8 +1529,11 @@ p{font-size:17px;line-height:1.4;margin:8px 0}
   var last = 0, acc = 0;
   function frame(now) {
     var dt = Math.min(0.05, (now - last) / 1000 || 0);
-    last = now; acc += dt;
-    while (acc >= STEP) { update(STEP); acc -= STEP; }
+    last = now; acc += dt * (TEST && window.ROBI.speed || 1);     /* Zeitraffer nur für Tests */
+    while (acc >= STEP) {
+      if (TEST && window.ROBI.step) window.ROBI.step();           /* hier steuert der Test-Bot */
+      update(STEP); acc -= STEP;
+    }
     draw();
     if (!$('shop').hidden) drawPreview();
     if (G.mode === 'play') hud();
@@ -1539,7 +1542,7 @@ p{font-size:17px;line-height:1.4;margin:8px 0}
 
   resize();
   showStart();
-  if (TEST) window.ROBI = { game: function () { return G; }, input: input, view: view, gen: GEN, bump: bump, hurt: hurt, music: music };
+  if (TEST) window.ROBI = { game: function () { return G; }, input: input, view: view, gen: GEN, bump: bump, hurt: hurt, music: music, speed: 1, step: null };
   requestAnimationFrame(frame);
 })();
 </script>

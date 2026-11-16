@@ -5,7 +5,8 @@
   "scripts": {
     "check": "node tools/check.js",
     "smoke": "node tools/smoke.js",
-    "test": "node tools/check.js && node tools/smoke.js",
+    "spieltest": "node tools/spieltest.js",
+    "test": "node tools/check.js && node tools/smoke.js && node tools/spieltest.js",
     "start": "python3 -m http.server 8000"
   },
   "devDependencies": {

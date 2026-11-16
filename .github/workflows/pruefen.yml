@@ -1,6 +1,7 @@
 name: Spiele prüfen
 
 # Läuft bei jedem Push: erst die Regel-Prüfung, dann öffnet ein Browser die Startseite und jedes Spiel.
+# Spiele mit einer Datei in tools/spieltests/ werden danach automatisch durchgespielt.
 on:
   push:
   workflow_dispatch:
@@ -29,6 +30,8 @@ jobs:
           npx playwright install --with-deps chromium
       - name: Startseite und Spiele im Browser öffnen
         run: node tools/smoke.js
+      - name: Spiele durchspielen
+        run: node tools/spieltest.js
       - name: Screenshots hochladen
         if: always()
         uses: actions/upload-artifact@v4

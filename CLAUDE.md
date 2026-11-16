@@ -16,9 +16,10 @@ games/<ordner>/            ein Ordner pro Spiel
   index.html               das Spiel, eigenständig in einer Datei
   thumbnail.jpg            Vorschaubild 900×600
   readme.md                kurze Beschreibung: Inhalt, Steuerung, Besonderheiten
-tools/                     Werkzeuge: neues-spiel.js, thumbnail.js, check.js, smoke.js
+tools/                     Werkzeuge: neues-spiel.js, thumbnail.js, check.js, smoke.js, spieltest.js
+tools/spieltests/          Durchspiel-Tests, eine Datei pro Spiel (<ordner>.js), freiwillig
 tools/vorlage/             Startpunkt für neue Spiele (Quiz-Gerüst, erfüllt alle Regeln)
-.github/workflows/         „Spiele prüfen“: check.js und smoke.js bei jedem Push
+.github/workflows/         „Spiele prüfen“: check.js, smoke.js und spieltest.js bei jedem Push
 ```
 
 ## Werkzeuge
@@ -29,6 +30,7 @@ tools/vorlage/             Startpunkt für neue Spiele (Quiz-Gerüst, erfüllt a
 | `node tools/thumbnail.js <ordner> [--klick "<css>"] [--verstecken "<css>"] [--warten <ms>]` | `thumbnail.jpg` 900×600 als Screenshot |
 | `node tools/check.js` | Regeln prüfen ohne Browser – muss ohne Fehler durchlaufen |
 | `node tools/smoke.js [ordner]` | Startseite und Spiele im Browser öffnen (Computer + Handy), Screenshots in `test-ergebnisse/` |
+| `node tools/spieltest.js [ordner]` | Spiele mit Testdatei in `tools/spieltests/` automatisch durchspielen (Spielablauf, Gewinn-Bildschirm, Speicherstand) |
 
 Die Werkzeuge starten ihren eigenen Webserver. Neue Regeln, die sich automatisch prüfen lassen,
 in `tools/check.js` ergänzen statt nur hier aufzuschreiben.
@@ -57,7 +59,10 @@ in `tools/check.js` ergänzen statt nur hier aufzuschreiben.
 9. **Testen**: `node tools/check.js` und `node tools/smoke.js <ordner>` ohne Fehler; Screenshots in
    `test-ergebnisse/` in Computer- und Handy-Größe ansehen. Der Browser-Test öffnet nur den
    Start-Bildschirm – Spielablauf und End-Bildschirm zusätzlich mit Playwright durchspielen und ansehen,
-   auf JavaScript-Fehler achten (`pageerror`).
+   auf JavaScript-Fehler achten (`pageerror`). Lohnt sich das bei einem selbst entwickelten Spiel öfter,
+   den Ablauf als `tools/spieltests/<ordner>.js` festhalten – dann läuft er bei jedem Push mit
+   (Beispiel: `tools/spieltests/mathe-robi.js`). Wer ein Spiel mit Testdatei ändert, führt
+   `node tools/spieltest.js <ordner>` aus und passt den Test mit an.
 10. **Startseite** per Screenshot prüfen (`test-ergebnisse/startseite-*.png` nach `node tools/smoke.js`):
     neue Kachel sichtbar, Bild und Texte passen.
 11. **Abschluss**: committen, pushen, Pull Request nach `main` öffnen (ein Spiel pro Pull Request).
@@ -80,8 +85,8 @@ in `tools/check.js` ergänzen statt nur hier aufzuschreiben.
 
 - Startseite bleibt ohne Build und ohne Abhängigkeiten; neue Felder in `games.js` optional halten,
   damit alte Einträge weiter funktionieren, und in `tools/check.js` sowie im Kommentar in `games.js` beschreiben.
-- Nach Änderungen an `assets/`, `index.html`, `games.js` oder `tools/`: `node tools/check.js` und
-  `node tools/smoke.js` ausführen.
+- Nach Änderungen an `assets/`, `index.html`, `games.js` oder `tools/`: `node tools/check.js`,
+  `node tools/smoke.js` und `node tools/spieltest.js` ausführen.
 - `package.json` dient nur den Tests (Playwright). Für die veröffentlichte Seite keine npm-Pakete einführen.
 
 ## Git

@@ -4,7 +4,13 @@ Mathe, 3. Klasse. Jump-&-Run-Spiel: Roboter Robi läuft und hüpft durch eine Fa
 10 Stationen die Maschinen wieder zum Laufen. Dazu springt er von unten gegen den Block mit dem
 richtigen Ergebnis. Am Ende wartet der Schrott-Roboter als Endgegner mit 3 weiteren Aufgaben.
 
-Themen (am Start wählbar): Einmaleins, Teilen, Plus bis 1000, Minus bis 1000, Bunt gemischt.
+Themen (am Start wählbar, in drei Gruppen, passend zum Bildungsplan 2016 Baden-Württemberg, Klassen 3/4):
+- Rechnen: Einmaleins, Teilen, Plus bis 1000, Minus bis 1000, Zehner-Einmaleins (6 · 70, 420 : 6)
+- Zahlen: Doppelt und Hälfte, Nachbarn und Runden (Vorgänger, Nachfolger, auf Zehner und Hunderter runden),
+  Zahlenfolgen
+- Größen: Größen umwandeln (Längen, Gewichte, Geld, Rauminhalt, Zeit)
+- Alles: Bunt gemischt aus allen neun Themen
+
 Die Aufgaben werden bei jedem Spiel neu gewürfelt, die falschen Antworten sind typische Rechenfehler.
 
 Steuerung: Computer: Pfeiltasten oder A/D zum Laufen, Leertaste (auch Pfeil hoch oder W) zum Springen ·

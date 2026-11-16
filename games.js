@@ -53,7 +53,7 @@ window.GAMES = [
   {
     id: "mathe-robi",
     title: "Robi in der Zahlenfabrik",
-    description: "Hüpfe mit Roboter Robi durch die Fabrik und löse Aufgaben zu Einmaleins, Teilen, Plus und Minus.",
+    description: "Hüpfe mit Roboter Robi durch die Fabrik und löse Aufgaben zum Rechnen, zu Zahlen und zu Größen.",
     age: "3. Klasse",
     subject: "Mathe"
   }

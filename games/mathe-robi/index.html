@@ -20,7 +20,7 @@ button.pill{cursor:pointer}
 #banner{position:absolute;left:0;right:0;display:flex;flex-direction:column;align-items:center;gap:6px;
   padding:0 10px;pointer-events:none;text-align:center}
 #question{background:#fff;border:4px solid #ffb703;border-radius:16px;padding:4px 22px;font-weight:700;
-  font-size:clamp(24px,5vw,36px);box-shadow:0 4px 12px rgba(0,0,0,.4)}
+  font-size:clamp(20px,5vw,36px);box-shadow:0 4px 12px rgba(0,0,0,.4)}
 #feedback{background:rgba(255,255,255,.95);border-radius:12px;padding:5px 14px;font-weight:700;font-size:clamp(14px,2.6vw,18px);
   line-height:1.3;max-width:560px;box-shadow:0 3px 10px rgba(0,0,0,.35)}
 #feedback:empty{display:none}
@@ -39,11 +39,24 @@ button.pill{cursor:pointer}
   box-shadow:0 8px 24px rgba(0,0,0,.45)}
 h1{margin:0 0 6px;font-size:clamp(24px,5vw,34px)}
 p{font-size:17px;line-height:1.4;margin:8px 0}
-.topics{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px}
+.card.start{max-width:920px}
+.top{display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:8px 16px}
+.top h1{margin:0}
+.top .pill{background:#eef7fd;border:3px solid #b9dcf5;box-shadow:none}
+.groups{display:grid;gap:10px;margin-top:10px;text-align:left}
+.col{display:grid;gap:10px;align-content:start}
+.group{border-radius:18px;padding:8px 10px 10px}
+.group h2{margin:0 0 6px 4px;font-size:17px}
+.group .list{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.group .btn{margin:0;padding:8px;min-height:50px;font-size:17px;background:#fff}
+.group .btn:only-child{grid-column:1 / -1}
+.g-rechnen{background:#ffecd2}.g-rechnen .btn{border-color:#ffbe73}
+.g-zahlen{background:#dcedfb}.g-zahlen .btn{border-color:#93c5ec}
+.g-groessen{background:#dcf4df}.g-groessen .btn{border-color:#8fd29a}
+.g-alles{background:#ece2fa}.g-alles .btn{border-color:#c2a4e8}
+@media (min-width:760px){.groups{grid-template-columns:repeat(3,1fr)}.group .list{grid-template-columns:1fr}}
 .btn{display:block;width:100%;margin:10px 0 0;padding:12px 14px;min-height:52px;font:inherit;font-size:19px;font-weight:700;
   color:#16324f;background:#eef7fd;border:3px solid #b9dcf5;border-radius:16px;cursor:pointer;text-decoration:none}
-.topics .btn{margin:0}
-.topics .btn:last-child{grid-column:1 / -1}
 .btn small{display:block;font-size:14px;font-weight:400;letter-spacing:2px}
 .btn small:empty{display:none}
 .btn.main{background:#ff8a1f;border-color:#ff8a1f;color:#fff}
@@ -53,8 +66,8 @@ p{font-size:17px;line-height:1.4;margin:8px 0}
 .keys{font-size:15px;color:#4a6078}
 [hidden]{display:none!important}
 @media (max-width:430px){.pill{font-size:14px;padding:6px 10px}.hud{gap:5px}}
-@media (max-height:430px){.card{padding:12px 18px}.topics{grid-template-columns:1fr 1fr 1fr}.topics .btn:last-child{grid-column:auto}
-  .btn{min-height:46px;padding:8px 10px;font-size:17px}p{font-size:15px;margin:5px 0}.stars{font-size:40px}}
+@media (max-height:430px){.card{padding:12px 18px}.intro,.keys{display:none}#question{font-size:22px;padding:3px 16px}
+  .btn{min-height:46px;padding:8px 10px;font-size:17px}.group .btn{min-height:40px;padding:5px 8px;font-size:16px}.group .list{gap:6px}p{font-size:15px;margin:5px 0}.stars{font-size:40px}}
 </style>
 </head>
 <body>
@@ -78,19 +91,48 @@ p{font-size:17px;line-height:1.4;margin:8px 0}
 </div>
 
 <div class="overlay" id="start">
-  <section class="card">
-    <h1>🤖 Robi in der Zahlenfabrik</h1>
-    <p>Die Maschinen stehen still! Hilf Robi: Spring von unten gegen den Block mit der richtigen Zahl.</p>
-    <p><b>Was möchtest du üben?</b></p>
-    <div class="topics">
-      <button class="btn" data-topic="mal">✖️ Einmaleins<small></small></button>
-      <button class="btn" data-topic="geteilt">➗ Teilen<small></small></button>
-      <button class="btn" data-topic="plus">➕ Plus bis 1000<small></small></button>
-      <button class="btn" data-topic="minus">➖ Minus bis 1000<small></small></button>
-      <button class="btn" data-topic="mix">🎲 Bunt gemischt<small></small></button>
+  <section class="card start">
+    <div class="top">
+      <a class="pill" href="../../">🏠 Alle Spiele</a>
+      <h1>🤖 Robi in der Zahlenfabrik</h1>
+    </div>
+    <p class="intro">Die Maschinen stehen still! Hilf Robi: Spring von unten gegen den Block mit der richtigen Zahl.
+      <b>Was möchtest du üben?</b></p>
+    <div class="groups">
+      <div class="group g-rechnen">
+        <h2>🧮 Rechnen</h2>
+        <div class="list">
+          <button class="btn" data-topic="mal">✖️ Einmaleins<small></small></button>
+          <button class="btn" data-topic="geteilt">➗ Teilen<small></small></button>
+          <button class="btn" data-topic="plus">➕ Plus bis 1000<small></small></button>
+          <button class="btn" data-topic="minus">➖ Minus bis 1000<small></small></button>
+          <button class="btn" data-topic="zehner">🔟 Zehner-Einmaleins<small></small></button>
+        </div>
+      </div>
+      <div class="group g-zahlen">
+        <h2>🔢 Zahlen</h2>
+        <div class="list">
+          <button class="btn" data-topic="doppelt">👥 Doppelt und Hälfte<small></small></button>
+          <button class="btn" data-topic="nachbar">🎯 Nachbarn und Runden<small></small></button>
+          <button class="btn" data-topic="folgen">🐾 Zahlenfolgen<small></small></button>
+        </div>
+      </div>
+      <div class="col">
+        <div class="group g-groessen">
+          <h2>📏 Größen</h2>
+          <div class="list">
+            <button class="btn" data-topic="groessen">⚖️ Größen umwandeln<small></small></button>
+          </div>
+        </div>
+        <div class="group g-alles">
+          <h2>🎲 Alles</h2>
+          <div class="list">
+            <button class="btn" data-topic="mix">🎲 Bunt gemischt<small></small></button>
+          </div>
+        </div>
+      </div>
     </div>
     <p class="keys" id="keys">Laufen: Pfeiltasten ◀ ▶ · Springen: Leertaste</p>
-    <a class="btn" href="../../">🏠 Alle Spiele</a>
   </section>
 </div>
 
@@ -170,11 +212,11 @@ p{font-size:17px;line-height:1.4;margin:8px 0}
     return a;
   }
   /* Baut eine Aufgabe mit zwei falschen Antworten aus typischen Fehlern. */
-  function makeQ(text, ans, cands, exp) {
+  function makeQ(text, ans, cands, exp, max) {
     var seen = {}, wrong = [];
     seen[ans] = true;
     shuffle(cands).forEach(function (c) {
-      if (wrong.length < 2 && c > 0 && c <= 1000 && !seen[c]) { seen[c] = true; wrong.push(c); }
+      if (wrong.length < 2 && c > 0 && c <= (max || 1000) && !seen[c]) { seen[c] = true; wrong.push(c); }
     });
     for (var k = 1; wrong.length < 2; k++) {
       [ans + k, ans - k].forEach(function (c) {
@@ -226,8 +268,107 @@ p{font-size:17px;line-height:1.4;margin:8px 0}
       return makeQ(x + ' − ' + e + ' = ?', r, [r + 10, r - 10, r + 1, r - 1, r + 2],
         'Erst ' + x + ' − ' + o + ' = ' + base + ', dann − ' + (e - o) + ' = ' + r + '.');
     },
-    mix: function () { return GEN[['mal', 'geteilt', 'plus', 'minus'][ri(0, 3)]](); }
+    zehner: function () {                    /* Einmaleins mit Zehnerzahlen: 6 · 70, 60 · 7, 420 : 6 */
+      var a = ri(2, 9), b = ri(2, 9), r = a * b * 10, kind = ri(1, 3);
+      var near = [a * b, a * (b + 1) * 10, a * (b - 1) * 10, (a + 1) * b * 10, (a - 1) * b * 10];
+      if (kind === 1) return makeQ(a + ' · ' + (b * 10) + ' = ?', r, near,
+        a + ' · ' + b + ' = ' + (a * b) + ', also ' + a + ' · ' + (b * 10) + ' = ' + r + '.');
+      if (kind === 2) return makeQ((a * 10) + ' · ' + b + ' = ?', r, near,
+        a + ' · ' + b + ' = ' + (a * b) + ', also ' + (a * 10) + ' · ' + b + ' = ' + r + '.');
+      return makeQ(r + ' : ' + a + ' = ?', b * 10, [b, (b + 1) * 10, (b - 1) * 10, a * 10],
+        (a * b) + ' : ' + a + ' = ' + b + ', also ' + r + ' : ' + a + ' = ' + (b * 10) + '.');
+    },
+    doppelt: function () {
+      var kind = ri(1, 4), n, r;
+      if (kind <= 2) {
+        n = kind === 1 ? ri(12, 50) : ri(6, 49) * 10; r = n * 2;
+        return makeQ('Das Doppelte von ' + n + ' = ?', r,
+          kind === 1 ? [r + 2, r - 2, r + 10, r - 10] : [r + 10, r - 10, r + 20, r - 20, r + 100, r - 100],
+          n + ' + ' + n + ' = ' + r + '.');
+      }
+      r = kind === 3 ? ri(12, 50) : (ri(1, 2) === 1 ? ri(6, 50) * 10 : ri(1, 9) * 10 + 5); n = r * 2;
+      return makeQ('Die Hälfte von ' + n + ' = ?', r,
+        kind === 3 ? [r + 1, r - 1, r + 5, r - 5, r + 10, r - 10] : [r + 10, r - 10, r + 5, r - 5, r + 50, r - 50],
+        'Die Hälfte von ' + n + ' ist ' + r + ', denn ' + r + ' + ' + r + ' = ' + n + '.');
+    },
+    nachbar: function () {
+      var kind = ri(1, 4), n, r, lo, d;
+      if (kind === 1) {
+        n = ri(1, 3) === 1 ? ri(2, 10) * 100 : ri(1, 2) === 1 ? ri(11, 99) * 10 : ri(101, 999); r = n - 1;
+        return makeQ('Vorgänger von ' + n + ' = ?', r, [n + 1, n - 10, n - 2, n - 11, n - 100],
+          'Der Vorgänger ist um 1 kleiner: ' + n + ' − 1 = ' + r + '.');
+      }
+      if (kind === 2) {
+        n = ri(1, 3) === 1 ? ri(1, 8) * 100 + 99 : ri(1, 2) === 1 ? ri(10, 98) * 10 + 9 : ri(101, 998); r = n + 1;
+        return makeQ('Nachfolger von ' + n + ' = ?', r, [n - 1, n + 10, n + 2, n + 11, n + 100],
+          'Der Nachfolger ist um 1 größer: ' + n + ' + 1 = ' + r + '.');
+      }
+      if (kind === 3) {
+        do { n = ri(101, 989); } while (n % 10 === 0);
+        d = n % 10; lo = n - d; r = d >= 5 ? lo + 10 : lo;
+        return makeQ('Runde ' + n + ' auf Zehner!', r, [d >= 5 ? lo : lo + 10, Math.round(n / 100) * 100, r + 10, r - 10],
+          n + ' liegt zwischen ' + lo + ' und ' + (lo + 10) + '. Bei ' + (d === 1 ? '1 Einer' : d + ' Einern') +
+          ' rundet man ' + (d >= 5 ? 'auf' : 'ab') + '.');
+      }
+      do { n = ri(101, 949); } while (n % 100 === 0);
+      d = Math.floor(n % 100 / 10); lo = n - n % 100; r = d >= 5 ? lo + 100 : lo;
+      return makeQ('Runde ' + n + ' auf Hunderter!', r, [d >= 5 ? lo : lo + 100, Math.round(n / 10) * 10, r + 100, r - 100],
+        n + ' liegt zwischen ' + lo + ' und ' + (lo + 100) + '. Bei ' + (d === 1 ? '1 Zehner' : d + ' Zehnern') +
+        ' rundet man ' + (d >= 5 ? 'auf' : 'ab') + '.');
+    },
+    folgen: function () {
+      var kind = ri(1, 6), a, d, r, last, t = [], i;
+      if (kind === 1) {                      /* immer das Doppelte: 3, 6, 12, 24, ? */
+        a = ri(1, 6);
+        for (i = 0; i < 4; i++) t.push(a * Math.pow(2, i));
+        last = a * 8; r = a * 16;
+        return makeQ(t.join(', ') + ', ?', r, [a * 12, r + 2, r - 2, a * 10, r + a],
+          'Immer das Doppelte: ' + last + ' + ' + last + ' = ' + r + '.');
+      }
+      if (kind <= 4) {                       /* immer plus: 250, 300, 350, 400, ? */
+        d = [2, 3, 4, 5, 6, 7, 8, 9, 10, 20, 25, 50, 100][ri(0, 12)];
+        a = d >= 20 ? ri(1, 10) * 50 : ri(1, 60);
+      } else {                               /* immer minus: 100, 90, 80, 70, ? */
+        d = -[2, 5, 10, 20, 25, 50, 100][ri(0, 6)];
+        a = d <= -20 ? ri(5, 10) * 100 : ri(5, 10) * 10;
+      }
+      for (i = 0; i < 4; i++) t.push(a + i * d);
+      last = a + 3 * d; r = a + 4 * d;
+      return makeQ(t.join(', ') + ', ?', r,
+        [r + d, r + 1, r - 1, r + 10, r - 10, r + 2].filter(function (c) { return c !== last; }),
+        'Immer ' + (d > 0 ? '+ ' : '− ') + Math.abs(d) + ': ' + last + (d > 0 ? ' + ' : ' − ') + Math.abs(d) + ' = ' + r + '.');
+    },
+    groessen: function () {
+      var u = UNITS[ri(0, UNITS.length - 1)], one = u[0], many = u[1], small = u[2], f = u[3], rests = u[5];
+      var kind = ri(1, rests ? 3 : 2), n, r;
+      var base = (f === 1 ? '' : f + ' ') + small;
+      if (kind === 1) {                      /* 3 m = ? cm */
+        n = ri(1, u[4]); r = n * f;
+        return makeQ(n + ' ' + (n === 1 ? one : many) + ' = ? ' + small, r, [n * 10, n * 100, n * 1000, (n + 1) * f, (n - 1) * f, r + 10],
+          '1 ' + one + ' = ' + base + (n === 1 ? '.' : ', also ' + n + ' ' + many + ' = ' + r + ' ' + small + '.'), 10000);
+      }
+      if (kind === 2) {                      /* 300 cm = ? m */
+        n = ri(2, Math.max(2, u[4]));
+        return makeQ((n * f) + ' ' + small + ' = ? ' + many, n, [n * 10, n + 1, n - 1, n + 2, n * 100],
+          base + ' = 1 ' + one + ', also ' + (n * f) + ' ' + small + ' = ' + n + ' ' + many + '.', 10000);
+      }
+      n = ri(1, Math.min(3, u[4]));          /* 1 m 50 cm = ? cm */
+      var rest = rests[ri(0, rests.length - 1)];
+      r = n * f + rest;
+      return makeQ(n + ' ' + (n === 1 ? one : many) + ' ' + rest + ' ' + small + ' = ? ' + small, r,
+        [n * 10 + rest, n * 100 + rest, n * 1000 + rest, Number(String(n) + rest), n * f + rest * 10, r + 10, r - 10],
+        n + ' ' + (n === 1 ? one : many) + ' = ' + (n * f) + ' ' + small + ', dazu ' + rest + ' ' + small + ': ' + r + ' ' + small + '.', 10000);
+    },
+    mix: function () { return GEN[MIX[ri(0, MIX.length - 1)]](); }
   };
+  var MIX = ['mal', 'geteilt', 'plus', 'minus', 'zehner', 'doppelt', 'nachbar', 'folgen', 'groessen'];
+  /* Größen: [Einheit, Mehrzahl, kleinere Einheit, Faktor, größte Anzahl, Reste für „1 m 50 cm“] */
+  var UNITS = [
+    ['m', 'm', 'cm', 100, 9, [5, 20, 50, 75]], ['cm', 'cm', 'mm', 10, 9, [5]], ['km', 'km', 'm', 1000, 9, [200, 500]],
+    ['kg', 'kg', 'g', 1000, 9, [250, 500]], ['€', '€', 'Cent', 100, 9, [5, 20, 50]], ['l', 'l', 'ml', 1000, 5, [500]],
+    ['h', 'h', 'min', 60, 4, [15, 30, 45]], ['min', 'min', 's', 60, 5, [30]],
+    ['Tag', 'Tage', 'h', 24, 2, null], ['Woche', 'Wochen', 'Tage', 7, 9, null], ['Jahr', 'Jahre', 'Monate', 12, 3, null]
+  ];
   var WRONG = ['🤔 Noch nicht ganz. Versuch es noch einmal!', '🤔 Fast! Rechne in Ruhe noch einmal nach.',
     '🤔 Das passt noch nicht. Probier eine andere Zahl!'];
 
@@ -678,7 +819,7 @@ p{font-size:17px;line-height:1.4;margin:8px 0}
     ctx.fillStyle = c[1];
     ctx.fillRect(x + 7, y + b.h - 11, 4, 4); ctx.fillRect(x + b.w - 11, y + b.h - 11, 4, 4);
     ctx.fillStyle = c[2];
-    ctx.font = 'bold 24px ' + FONT; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.font = 'bold ' + (String(b.value).length > 4 ? 20 : 24) + 'px ' + FONT; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
     ctx.fillText(String(b.value), x + b.w / 2, y + b.h / 2 + 2);
     if (b.state === 'wrong') {
       ctx.strokeStyle = '#d64545'; ctx.lineWidth = 4;
@@ -993,7 +1134,7 @@ p{font-size:17px;line-height:1.4;margin:8px 0}
 
   resize();
   showStart();
-  if (TEST) window.ROBI = { game: function () { return G; }, input: input, view: view };
+  if (TEST) window.ROBI = { game: function () { return G; }, input: input, view: view, gen: GEN };
   requestAnimationFrame(frame);
 })();
 </script>

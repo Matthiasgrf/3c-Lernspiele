@@ -154,6 +154,8 @@ p{font-size:17px;line-height:1.4;margin:8px 0}
   var SAVE = 'mathe_robi_v1';
   /* Mit ?test in der Adresse gibt es einen Zugang für automatische Tests. */
   var TEST = /[?&]test\b/.test(location.search);
+  /* Nur für Tests: mit ?test&alle enthält das Level alle Abschnitte hintereinander. */
+  var ALL = TEST && /[?&]alle\b/.test(location.search);
 
   var T = 40;          /* Größe eines Feldes */
   var GY = 320;        /* Höhe des Bodens */
@@ -374,8 +376,8 @@ p{font-size:17px;line-height:1.4;margin:8px 0}
 
   /* ---------- Level ---------- */
   function buildLevel(topic) {
-    var L = { solids: [], gears: [], enemies: [], stations: [], flags: [], pits: [], boss: null, goal: null, length: 0 };
-    var x = 0, used = {};
+    var L = { solids: [], gears: [], enemies: [], stations: [], flags: [], pits: [], movers: [], boss: null, goal: null, length: 0 };
+    var x = 0, lv = 0, used = {};   /* lv = Höhe des Bodens in Feldern über dem normalen Boden */
     function question() {
       var q, n = 0;
       do { q = GEN[topic](); } while (used[q.text] && ++n < 50);
@@ -383,20 +385,28 @@ p{font-size:17px;line-height:1.4;margin:8px 0}
       return q;
     }
     function ground(n, belt) {
-      var r = { kind: 'ground', x: x * T, y: GY, w: n * T, h: 900, belt: belt || 0 };
+      var r = { kind: 'ground', x: x * T, y: GY - lv * T, w: n * T, h: 900 + lv * T, belt: belt || 0 };
       L.solids.push(r); x += n; return r;
     }
+    /* Rampe aus halben Stufen – die läuft Robi ohne Springen hinauf und hinunter. */
+    function ramp(to) { while (lv !== to) { lv += lv < to ? 0.5 : -0.5; ground(1); } }
     function coin(px, py) { L.gears.push({ x: px, y: py, got: false }); }
     function coins(r, off, n) { for (var i = 0; i < n; i++) coin(r.x + (off + i) * T + T / 2, r.y - 24); }
     function gap(n, plain) {
-      var px = x * T, w = n * T;
+      var px = x * T, w = n * T, y = GY - lv * T;
       L.pits.push({ x: px, w: w });
-      if (!plain) { coin(px - 6, GY - 66); coin(px + w / 2, GY - 96); coin(px + w + 6, GY - 66); }
-      x += n; return { x: px };
+      if (!plain) { coin(px - 6, y - 66); coin(px + w / 2, y - 96); coin(px + w + 6, y - 66); }
+      x += n; return { x: px, y: y };
     }
     function plat(r, off, up, n) {
-      var p = { kind: 'plat', x: r.x + off * T, y: GY - up * T, w: n * T, h: 14 };
+      var p = { kind: 'plat', x: r.x + off * T, y: r.y - up * T, w: n * T, h: 14 };
       L.solids.push(p); return p;
+    }
+    /* Plattform, die hin und her fährt (dx) oder als Aufzug hoch und runter (dy), Angaben in Feldern. */
+    function mover(r, off, n, dx, dy, per, phase) {
+      var p = plat(r, off, 0, n);
+      p.move = { x0: p.x, y0: p.y, dx: dx * T, dy: dy * T, per: per, t: phase || 0 };
+      L.movers.push(p); return p;
     }
     function foe(type, r, a, b) {
       var beetle = type === 'beetle', w = beetle ? 34 : 28, h = beetle ? 22 : 28;
@@ -420,34 +430,89 @@ p{font-size:17px;line-height:1.4;margin:8px 0}
       L.stations.push(st);
     }
 
-    var g, p, pit;
-    g = ground(11); coins(g, 5, 3);
+    /* Lauf-Abschnitte zwischen den Stationen. Jeder beginnt und endet auf dem normalen Boden.
+       Regeln: nach einer Grube mindestens 3 Felder Platz bis zum Gegner, an den Stationen keine Gegner. */
+    var EASY = [
+      function () { var g = ground(16); coins(g, 2, 2); var p = plat(g, 6, 2, 3); coins(p, 0, 3); foe('beetle', g, 10, 15); },
+      function () { var g = ground(6); coins(g, 2, 2); gap(2); g = ground(10); foe('beetle', g, 3, 9); },
+      function () {
+        var g = ground(19), p = plat(g, 3, 2, 3); coins(p, 0, 3); p = plat(g, 8, 4, 3); coins(p, 0, 3);
+        p = plat(g, 13, 2, 2); coins(p, 0, 2); foe('beetle', g, 6, 12);
+      },
+      function () { ground(3); var g = ground(6, -1); coins(g, 1, 4); ground(2); gap(2); g = ground(9); foe('screw', g, 3, 9); },
+      function () {                          /* Rampe hinauf und wieder hinunter */
+        var g = ground(4); coins(g, 1, 2); ramp(2); g = ground(4); coins(g, 0, 4); ramp(0);
+        g = ground(7); foe('beetle', g, 2.5, 7);
+      },
+      function () {                          /* kleine Treppe */
+        ground(4); lv = 1; var g = ground(3); coins(g, 0, 3); lv = 2; g = ground(4); coins(g, 0, 4);
+        lv = 1; ground(3); lv = 0; g = ground(7); foe('screw', g, 2.5, 7);
+      }
+    ];
+    var MID = [
+      function () {
+        var g = ground(8); coins(g, 1, 2); foe('beetle', g, 3, 6.5); gap(3); g = ground(4); coins(g, 1, 2); gap(2);
+        g = ground(9); foe('beetle', g, 3, 9);
+      },
+      function () {                          /* Inseln über einer langen Grube */
+        var g = ground(5); coins(g, 1, 3); var pit = gap(9, true);
+        var p = plat(pit, 2, 0.5, 2); coins(p, 0, 2); p = plat(pit, 6, 1, 2); coins(p, 0, 2);
+        g = ground(9); foe('screw', g, 3, 9);
+      },
+      function () {
+        ground(4); var g = ground(5, 1); coins(g, 0, 5); ground(2); gap(2); g = ground(8); foe('beetle', g, 3.5, 7); gap(2);
+        g = ground(10); foe('screw', g, 3, 9);
+      },
+      function () {                          /* fahrende Plattform über einer Grube */
+        var g = ground(5); coins(g, 1, 3); var pit = gap(6, true);
+        mover(pit, 0, 2, 4, 0, 5); coin(pit.x + 2 * T, pit.y - 60); coin(pit.x + 3 * T, pit.y - 60); coin(pit.x + 4 * T, pit.y - 60);
+        g = ground(9); foe('beetle', g, 3, 9);
+      },
+      function () {                          /* Berg mit Grube auf dem Gipfel */
+        ground(4); ramp(2); var g = ground(3); coins(g, 0, 3); gap(2); g = ground(3); coins(g, 0, 3); ramp(0);
+        g = ground(7); foe('screw', g, 2.5, 7);
+      },
+      function () {                          /* Aufzug auf einen hohen Absatz, Treppe hinunter */
+        var g = ground(5); coins(g, 1, 3); var pit = gap(2, true); mover(pit, 0, 2, 0, -3, 6);
+        lv = 3; g = ground(7); coins(g, 0, 3); foe('beetle', g, 3, 7);
+        lv = 2; ground(2); lv = 1; ground(2); lv = 0; g = ground(6); coins(g, 1, 3);
+      },
+      function () {                          /* Treppen-Berg */
+        ground(4); lv = 1; ground(2); lv = 2; ground(2); lv = 3; var g = ground(7); coins(g, 0, 3); foe('beetle', g, 3, 7);
+        lv = 2; ground(2); lv = 1; ground(2); lv = 0; g = ground(7); foe('beetle', g, 2.5, 7);
+      }
+    ];
+    var HARD = [
+      function () {                          /* Plattform-Treppe mit zwei Käfern */
+        var g = ground(21), p; plat(g, 3, 1.5, 2); p = plat(g, 6, 3, 2); coins(p, 0, 2); p = plat(g, 9, 4.5, 3); coins(p, 0, 3);
+        p = plat(g, 13, 3, 2); coins(p, 0, 2); plat(g, 16, 1.5, 2); foe('beetle', g, 5, 11); foe('beetle', g, 12, 19);
+      },
+      function () {
+        var g = ground(6); coins(g, 1, 3); gap(2); g = ground(8); foe('beetle', g, 3.5, 7); gap(3); g = ground(5); coins(g, 1, 3); gap(2);
+        g = ground(9); foe('screw', g, 3, 9);
+      },
+      function () {                          /* zwei fahrende Plattformen mit einer Insel dazwischen */
+        var g = ground(5); coins(g, 1, 3); var pit = gap(12, true);
+        mover(pit, 0, 2, 3, 0, 5); var p = plat(pit, 5, 0, 2); coins(p, 0, 2); mover(pit, 7, 2, 3, 0, 5, 1.8);
+        g = ground(9); foe('screw', g, 3, 9);
+      },
+      function () {                          /* Aufzug, Sprung in der Höhe, lange Rampe hinunter */
+        var g = ground(5); coins(g, 1, 3); var pit = gap(2, true); mover(pit, 0, 2, 0, -3, 6);
+        lv = 3; g = ground(4); coins(g, 0, 4); gap(2); g = ground(4); coins(g, 0, 4); ramp(0);
+        g = ground(7); foe('screw', g, 2.5, 7);
+      },
+      function () {                          /* Berg und Tal mit Förderband */
+        ground(4); lv = 1; ground(2); lv = 2; var g = ground(4); coins(g, 0, 4); gap(3); g = ground(4); coins(g, 0, 4);
+        lv = 1; ground(2); lv = 0; ground(3); g = ground(4, -1); coins(g, 0, 4); ground(2); gap(2);
+        g = ground(9); foe('beetle', g, 3, 9);
+      }
+    ];
+    /* Jedes Spiel würfelt neu: erst 3 leichte, dann 4 mittlere, dann 2 schwere Abschnitte. */
+    function pull(pool, n) { return shuffle(pool.slice()).slice(0, n); }
+    var runs = ALL ? EASY.concat(MID, HARD) : pull(EASY, 3).concat(pull(MID, 4), pull(HARD, 2));
+    var g = ground(11); coins(g, 5, 3);
     station();
-    g = ground(16); coins(g, 2, 2); p = plat(g, 6, 2, 3); coins(p, 0, 3); foe('beetle', g, 10, 15);
-    station();
-    g = ground(6); coins(g, 2, 2); gap(2); g = ground(10); foe('beetle', g, 3, 9);
-    station();
-    g = ground(19); p = plat(g, 3, 2, 3); coins(p, 0, 3); p = plat(g, 8, 4, 3); coins(p, 0, 3);
-    p = plat(g, 13, 2, 2); coins(p, 0, 2); foe('beetle', g, 6, 12);
-    station();
-    ground(3); g = ground(6, -1); coins(g, 1, 4); ground(2); gap(2); g = ground(9); foe('screw', g, 3, 9);
-    station();
-    g = ground(8); coins(g, 1, 2); foe('beetle', g, 4, 8); gap(3); g = ground(4); coins(g, 1, 2); gap(2);
-    g = ground(9); foe('beetle', g, 3, 9);
-    station();
-    g = ground(5); coins(g, 1, 3); pit = gap(9, true);
-    p = plat(pit, 2, 0.5, 2); coins(p, 0, 2); p = plat(pit, 6, 1, 2); coins(p, 0, 2);
-    g = ground(9); foe('screw', g, 3, 9);
-    station();
-    ground(4); g = ground(5, 1); coins(g, 0, 5); ground(2); gap(2); g = ground(8); foe('beetle', g, 3.5, 7); gap(2);
-    g = ground(10); foe('screw', g, 3, 9);
-    station();
-    g = ground(21); plat(g, 3, 1.5, 2); p = plat(g, 6, 3, 2); coins(p, 0, 2); p = plat(g, 9, 4.5, 3); coins(p, 0, 3);
-    p = plat(g, 13, 3, 2); coins(p, 0, 2); plat(g, 16, 1.5, 2); foe('beetle', g, 5, 11); foe('beetle', g, 12, 19);
-    station();
-    g = ground(6); coins(g, 1, 3); gap(2); g = ground(8); foe('beetle', g, 3.5, 7); gap(3); g = ground(5); coins(g, 1, 3); gap(2);
-    g = ground(9); foe('screw', g, 3, 9);
-    station();
+    runs.forEach(function (run) { run(); lv = 0; station(); });
     g = ground(8); coins(g, 2, 4);
 
     /* Endgegner: großer Schrott-Roboter, danach der Hauptschalter als Ziel. */
@@ -467,6 +532,9 @@ p{font-size:17px;line-height:1.4;margin:8px 0}
       if (r.kind !== 'ground') return;
       r.pitL = L.pits.some(function (q) { return q.x + q.w === r.x; });
       r.pitR = L.pits.some(function (q) { return q.x === r.x + r.w; });
+      /* Seiten, an denen es hinuntergeht, bekommen eine sichtbare Kante. */
+      r.edgeL = !L.solids.some(function (o) { return o.kind === 'ground' && o.x + o.w === r.x && o.y <= r.y; });
+      r.edgeR = !L.solids.some(function (o) { return o.kind === 'ground' && o.x === r.x + r.w && o.y <= r.y; });
     });
     return L;
   }
@@ -511,9 +579,20 @@ p{font-size:17px;line-height:1.4;margin:8px 0}
     for (var i = 0; i < solids.length; i++) {
       var s = solids[i];
       if (s.off || !hits(p, s)) continue;
+      /* Niedrige Stufe (halbes Feld): Robi steigt beim Laufen einfach hinauf. */
+      var step = p.y + p.h - s.y;
+      if (p.onGround && step > 0 && step <= 22) {
+        var oldY = p.y; p.y = s.y - p.h;
+        if (isFree(p, solids)) continue;
+        p.y = oldY;
+      }
       if (dx > 0) p.x = s.x - p.w; else if (dx < 0) p.x = s.x + s.w;
       p.vx = 0;
     }
+  }
+  function isFree(p, solids) {
+    for (var i = 0; i < solids.length; i++) if (!solids[i].off && hits(p, solids[i])) return false;
+    return true;
   }
   function moveY(p, dy, solids) {
     p.y += dy; p.onGround = false;
@@ -603,6 +682,16 @@ p{font-size:17px;line-height:1.4;margin:8px 0}
     });
     if (G.zap && (G.zap.t -= dt) <= 0) G.zap = null;
     if (G.mode !== 'play') return;
+
+    /* Fahrende Plattformen und Aufzüge nehmen Robi mit. */
+    L.movers.forEach(function (m) {
+      var mv = m.move; mv.t += dt;
+      var f = (1 - Math.cos(mv.t / mv.per * Math.PI * 2)) / 2;
+      var nx = mv.x0 + mv.dx * f, ny = mv.y0 + mv.dy * f, ddx = nx - m.x;
+      var ride = p.dead <= 0 && p.onGround && p.floor === m;
+      m.x = nx; m.y = ny;
+      if (ride) { moveX(p, ddx, L.solids); p.y = m.y - p.h; }
+    });
 
     /* Robi */
     if (p.dead > 0) {
@@ -781,6 +870,9 @@ p{font-size:17px;line-height:1.4;margin:8px 0}
       ctx.fillStyle = '#c0cbd8'; ctx.fillRect(x0, r.y, x1 - x0, 3);
       ctx.fillStyle = '#263243'; ctx.fillRect(x0, r.y + 10, x1 - x0, 2);
     }
+    ctx.fillStyle = '#222d3d';
+    if (r.edgeL) ctx.fillRect(r.x, r.y + 2, 3, view.bot - r.y);
+    if (r.edgeR) ctx.fillRect(r.x + r.w - 3, r.y + 2, 3, view.bot - r.y);
     if (r.pitL) stripes(r.x, r.y, 20, 10);
     if (r.pitR) stripes(r.x + r.w - 20, r.y, 20, 10);
   }
@@ -799,9 +891,9 @@ p{font-size:17px;line-height:1.4;margin:8px 0}
     ctx.beginPath();
     ctx.moveTo(r.x + 8, r.y); ctx.lineTo(r.x + 8, view.top); ctx.moveTo(r.x + r.w - 8, r.y); ctx.lineTo(r.x + r.w - 8, view.top);
     ctx.stroke();
-    box(r.x, r.y, r.w, r.h, 3, '#7f8da0', '#3a4658', 2);
-    ctx.fillStyle = '#c9d3df'; ctx.fillRect(r.x + 2, r.y + 1, r.w - 4, 3);
-    ctx.fillStyle = '#3a4658';
+    box(r.x, r.y, r.w, r.h, 3, r.move ? '#f2b441' : '#7f8da0', r.move ? '#7a4a00' : '#3a4658', 2);
+    ctx.fillStyle = r.move ? '#ffe3a0' : '#c9d3df'; ctx.fillRect(r.x + 2, r.y + 1, r.w - 4, 3);
+    ctx.fillStyle = r.move ? '#7a4a00' : '#3a4658';
     for (var x = r.x + 10; x < r.x + r.w - 6; x += 20) ctx.fillRect(x, r.y + 7, 3, 3);
   }
 
@@ -962,8 +1054,8 @@ p{font-size:17px;line-height:1.4;margin:8px 0}
     if (p.dead > 0) { ctx.translate(0, -20); ctx.rotate((0.7 - p.dead) * 8); ctx.translate(0, 20); }
     if (p.face < 0) ctx.scale(-1, 1);
     if (p.inv > 0 && Math.floor(G.time * 12) % 2) ctx.globalAlpha = 0.35;
-    var run = p.onGround && Math.abs(p.vx) > 30, ph = G.time * 16;
-    var f1 = run ? Math.sin(ph) * 4 : 0, f2 = run ? -Math.sin(ph) * 4 : 0, up = p.onGround ? 0 : 3;
+    var grounded = p.onGround || p.coy > 0.03, run = grounded && Math.abs(p.vx) > 30, ph = G.time * 16;
+    var f1 = run ? Math.sin(ph) * 4 : 0, f2 = run ? -Math.sin(ph) * 4 : 0, up = grounded ? 0 : 3;
     ctx.fillStyle = '#2a323d';
     rr(-11 + f1, -7 - up, 10, 7, 3); ctx.fill();
     rr(1 + f2, -7 - up, 10, 7, 3); ctx.fill();
@@ -972,7 +1064,7 @@ p{font-size:17px;line-height:1.4;margin:8px 0}
     box(-5, -22, 12, 8, 2, '#1d3557');
     ctx.fillStyle = Math.floor(G.time * 2) % 2 ? '#4dff88' : '#4cc9f0'; ctx.fillRect(-3, -20, 3, 4);
     ctx.fillStyle = '#ff5d5d'; ctx.fillRect(2, -20, 3, 4);
-    box(9, -22 + (run ? -Math.sin(ph) * 2 : 0) - (p.onGround ? 0 : 6), 5, 11, 2, '#fb8500', '#7a3d00', 1.5);
+    box(9, -22 + (run ? -Math.sin(ph) * 2 : 0) - (grounded ? 0 : 6), 5, 11, 2, '#fb8500', '#7a3d00', 1.5);
     ctx.strokeStyle = '#7a3d00'; ctx.lineWidth = 2;
     ctx.beginPath(); ctx.moveTo(-3, -43); ctx.lineTo(-3, -50); ctx.stroke();
     ctx.beginPath(); ctx.arc(-3, -52, 3.5, 0, Math.PI * 2); ctx.fillStyle = '#ff5d5d'; ctx.fill();

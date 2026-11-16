@@ -28,12 +28,14 @@ module.exports = async function (t) {
       const q = ROBI.gen[topic](stufe);
       count++;
       const ok = q.opts.length === 3 && new Set(q.opts).size === 3 && q.opts.includes(q.ans) &&
-        q.opts.every(o => Number.isInteger(o) && o > 0) && !/NaN|undefined|null/.test(q.text + q.exp + (q.tip || ''));
+        q.opts.every(o => Number.isInteger(o) && o > 0 && o <= 10000) && !/NaN|undefined|null/.test(q.text + q.exp + q.tip + q.full) &&
+        q.tip.startsWith('Tipp: ') && q.full.includes(String(q.ans)) && !q.full.includes('?') &&
+        (topic === 'groessen' || topic === 'mix' || q.ans <= 1000);
       if (!ok && bad.length < 5) bad.push(topic + ' Stufe ' + stufe + ': ' + JSON.stringify(q));
     }
     return { bad, count };
   }, TOPICS);
-  t.check(gen.count + ' Aufgaben aus allen Themen sind in Ordnung', gen.bad.length === 0, gen.bad.join(' | '));
+  t.check(gen.count + ' Aufgaben aus allen Themen und Stufen sind in Ordnung (Antworten, Tipp, Rechenweg)', gen.bad.length === 0, gen.bad.join(' | '));
   await page.close();
 
   /* ---------- Durchspielen mit Bot ---------- */
@@ -158,6 +160,34 @@ module.exports = async function (t) {
   await page.click('#shopBtn');
   const worn = await page.$$eval('.item.on', list => list.map(b => b.dataset.item).join());
   t.check('Kaputter Speicherstand: Spiel lädt mit Standard-Robi', worn === 'orange,ohne,kugel' && (await page.textContent('#bank')).includes(' 0 '), worn);
+  await page.close();
+
+  /* ---------- Stufen: richtige Antworten machen es schwerer, Fehler leichter ---------- */
+  page = await go(DESK, '', { lvl: { mal: 4, plus: 9, minus: 'x' } });
+  await page.click('[data-topic="mal"]');
+  const stufen = await page.evaluate(() => {
+    const G = ROBI.game(), L = G.L, log = [];
+    const level = () => Math.floor(G.skill);
+    const solve = (i, wrongFirst) => {
+      const s = L.stations[i];
+      if (wrongFirst) ROBI.bump(s.blocks.find(b => b.value !== s.q.ans));
+      ROBI.bump(s.blocks.find(b => b.value === s.q.ans));
+    };
+    log.push('Start ' + level());                       /* gespeichert 4 → Start 3 */
+    log.push('später noch leer: ' + (L.stations[1].q === null && L.stations[1].blocks[0].value === null));
+    solve(0); log.push(level()); solve(1); log.push(level());      /* 2 richtig → 4 */
+    solve(2, true); log.push(level());                  /* Fehler → 3 */
+    solve(3); solve(4); solve(5); solve(6); solve(7); solve(8); log.push(level());   /* höchstens 5 */
+    return log.join(' | ');
+  });
+  t.check('Stufen: Start eine unter der gespeicherten, 2 richtige heben, ein Fehler senkt, höchstens 5',
+    stufen === 'Start 3 | später noch leer: true | 3 | 4 | 3 | 5', stufen);
+  await page.waitForTimeout(200);
+  t.check('Stufe steht in der Anzeige', /^Stufe 5 · Serie/.test(await page.textContent('#streak')), await page.textContent('#streak'));
+  await page.close();
+  page = await go(DESK);
+  await page.click('[data-topic="plus"]');
+  t.check('Erstes Spiel beginnt mit Stufe 1', await page.evaluate(() => ROBI.game().skill === 1));
   await page.close();
 
   /* ---------- Serien-Bonus ---------- */

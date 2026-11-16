@@ -279,6 +279,47 @@ p{font-size:17px;line-height:1.4;margin:8px 0}
     win: function () { [523, 659, 784, 1047, 784, 1047].forEach(function (f, i) { tone(f, 0.18, 'triangle', 0.12, 0, i * 0.14); }); }
   };
 
+  /* ---------- Musik: eine kurze Schleife aus Melodie und Bass, im Voraus geplant ---------- */
+  var TUNE = ('E5 - G5 - E5 C5 D5 - E5 - G5 - A5 G5 E5 - D5 - F5 - D5 B4 C5 - D5 E5 D5 C5 G4 - - - ' +
+    'E5 - G5 - E5 C5 D5 - E5 - G5 - C6 A5 G5 - A5 - F5 - G5 - E5 - D5 E5 D5 B4 C5 - - -').split(' ');
+  var BASS = 'C3 G3 C3 G3 C3 G3 C3 G3 G2 D3 G2 D3 G2 D3 G2 B2 C3 G3 C3 G3 A2 E3 A2 E3 F2 C3 G2 D3 G2 D3 C3 C3'.split(' ');
+  var music = { on: false, step: 0, next: 0, out: null, timer: null };
+  function hz(name) {
+    var semi = { C: 0, D: 2, E: 4, F: 5, G: 7, A: 9, B: 11 }[name.charAt(0)];
+    return 440 * Math.pow(2, (semi + (Number(name.charAt(1)) + 1) * 12 - 69) / 12);
+  }
+  function musicNote(f, t, d, type, vol) {
+    var o = actx.createOscillator(), g = actx.createGain();
+    o.type = type; o.frequency.setValueAtTime(f, t);
+    g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.001, t + d);
+    o.connect(g); g.connect(music.out);
+    o.start(t); o.stop(t + d + 0.02);
+  }
+  function musicTick() {
+    if (!music.on || !actx) return;
+    try {
+      if (music.next < actx.currentTime) music.next = actx.currentTime + 0.05;
+      while (music.next < actx.currentTime + 0.4) {
+        var i = music.step % TUNE.length;
+        if (TUNE[i] !== '-') musicNote(hz(TUNE[i]), music.next, 0.17, 'square', 0.02);
+        if (i % 2 === 0) musicNote(hz(BASS[i / 2]), music.next, 0.3, 'triangle', 0.05);
+        music.next += 0.19; music.step++;
+      }
+    } catch (e) {}
+  }
+  function musicVolume() { if (music.out) music.out.gain.value = store.mute ? 0 : 1; }
+  function musicStart() {
+    if (!actx) return;
+    try {
+      if (!music.out) { music.out = actx.createGain(); music.out.connect(actx.destination); }
+      musicVolume();
+      music.on = true; music.step = 0; music.next = 0;
+      if (!music.timer) music.timer = setInterval(musicTick, 120);
+    } catch (e) {}
+  }
+  function musicStop() { music.on = false; }
+  document.addEventListener('visibilitychange', function () { music.on = !document.hidden && !!G && G.mode === 'play' && !G.L.goal.hit; });
+
   /* ---------- Aufgaben (3. Klasse) ---------- */
   function ri(a, b) { return a + Math.floor(Math.random() * (b - a + 1)); }
   function shuffle(a) {
@@ -611,6 +652,35 @@ p{font-size:17px;line-height:1.4;margin:8px 0}
     return L;
   }
 
+  /* ---------- Farbwelten: jedes Spiel würfelt eine. Blöcke, Tore, Gegner und Robi sehen überall gleich aus. ---------- */
+  var THEMES = [
+    { name: 'Tagschicht', sky: ['#16223a', '#3a5874'], win: 'rgba(255,214,130,.20)', bar: 'rgba(15,25,45,.55)', seam: 'rgba(10,20,40,.22)',
+      pipe: ['#22344f', '#2c4263', '#31496c'], ground: '#39465a', top: '#8c9aab', hi: '#c0cbd8', line: '#263243', edge: '#222d3d',
+      pit: '#0c1424', wave: '#24365a', plat: '#7f8da0', platLine: '#3a4658', platHi: '#c9d3df', chain: 'rgba(15,25,45,.6)',
+      pillar: '#263245', pillarHi: '#34445c' },
+    { name: 'Nachtschicht', extra: 'moon', sky: ['#0b0e24', '#2b3063'], win: 'rgba(150,180,255,.22)', bar: 'rgba(8,10,30,.6)', seam: 'rgba(5,8,25,.3)',
+      pipe: ['#1a1e44', '#252a5a', '#2c3268'], ground: '#33385f', top: '#8188ba', hi: '#b9c0ea', line: '#1d2145', edge: '#191c3a',
+      pit: '#070918', wave: '#2a3170', plat: '#7b83b3', platLine: '#2c3160', platHi: '#c5cbf0', chain: 'rgba(8,10,30,.7)',
+      pillar: '#1c2046', pillarHi: '#2a2f5e' },
+    { name: 'Kesselraum', extra: 'glow', sky: ['#241010', '#6e3324'], win: 'rgba(255,150,70,.30)', bar: 'rgba(40,12,8,.6)', seam: 'rgba(30,8,5,.28)',
+      pipe: ['#3b1c16', '#52271d', '#6a3325'], ground: '#4b3b37', top: '#a38a7c', hi: '#d8c2b4', line: '#2c1f1c', edge: '#2a1d1a',
+      pit: '#2a0d06', wave: '#ff7b2e', plat: '#9c8b82', platLine: '#4a3a34', platHi: '#e0d0c6', chain: 'rgba(40,12,8,.7)',
+      pillar: '#3a211c', pillarHi: '#52302a' },
+    { name: 'Dach', extra: 'skyline', sky: ['#33266a', '#ff9f6e'],
+      ground: '#453f55', top: '#a69cb8', hi: '#dad1e6', line: '#2a2538', edge: '#272234',
+      pit: '#1b1530', wave: '#4a3f78', plat: '#8f87a6', platLine: '#3d3652', platHi: '#d9d2ea', chain: 'rgba(30,20,50,.6)',
+      pillar: '#2e2745', pillarHi: '#40375c' }
+  ];
+  /* Für Tests: ?test&welt=2 legt die Farbwelt fest. */
+  var WELT = TEST ? (/[?&]welt=(\d)/.exec(location.search) || [])[1] : undefined, lastTheme = -1;
+  function pickTheme() {
+    if (WELT !== undefined) return THEMES[WELT % THEMES.length];
+    var i;
+    do { i = ri(0, THEMES.length - 1); } while (i === lastTheme);
+    lastTheme = i;
+    return THEMES[i];
+  }
+
   /* ---------- Spielzustand ---------- */
   var G = null;
   var input = { left: false, right: false, jumpPressed: false };
@@ -619,7 +689,7 @@ p{font-size:17px;line-height:1.4;margin:8px 0}
 
   function newGame(topic, mode) {
     return {
-      mode: mode, topic: topic, L: buildLevel(topic), time: 0, cam: 0, fade: 0,
+      mode: mode, topic: topic, L: buildLevel(topic), theme: pickTheme(), time: 0, cam: 0, fade: 0,
       p: { x: 3 * T, y: GY - 40, w: 26, h: 40, vx: 0, vy: 0, face: 1, onGround: true, floor: null, coy: 0, buf: 0, inv: 0, dead: 0 },
       check: { x: 3 * T, y: GY - 40 }, cur: null,
       solved: 0, first: 0, gears: 0, parts: [], zap: null, winT: 0,
@@ -866,7 +936,7 @@ p{font-size:17px;line-height:1.4;margin:8px 0}
     /* Ziel */
     var goal = L.goal;
     if (!goal.hit && B.dead && cx > goal.x - 20) {
-      goal.hit = true; G.winT = 1.8; sfx.win();
+      goal.hit = true; G.winT = 1.8; musicStop(); sfx.win();
       burst(goal.x, GY - 120, 60, ['#ff5d5d', '#ffd54a', '#5ad17a', '#4cc9f0', '#ffffff'], 380);
     }
     if (G.winT > 0 && (G.winT -= dt) <= 0) showWin();
@@ -918,40 +988,64 @@ p{font-size:17px;line-height:1.4;margin:8px 0}
   }
 
   function drawBackground() {
-    var W = view.w, top = view.top, bot = view.bot, x, y;
+    var W = view.w, top = view.top, bot = view.bot, th = G.theme, x, y, i, off;
     var g = ctx.createLinearGradient(0, Math.min(top, 0), 0, WH);
-    g.addColorStop(0, '#16223a'); g.addColorStop(1, '#3a5874');
+    g.addColorStop(0, th.sky[0]); g.addColorStop(1, th.sky[1]);
     ctx.fillStyle = g; ctx.fillRect(0, top, W, bot - top);
+    if (th.extra === 'skyline') {            /* auf dem Dach: Abendsonne und die Stadt dahinter */
+      ctx.fillStyle = 'rgba(255,236,170,.9)';
+      ctx.beginPath(); ctx.arc(W * 0.72, 170, 46, 0, Math.PI * 2); ctx.fill();
+      [[0.15, 90, 'rgba(60,40,105,.55)', 150], [0.4, 70, 'rgba(38,26,74,.85)', 90]].forEach(function (lay) {
+        var first = Math.floor(G.cam * lay[0] / lay[1]) - 1;
+        for (i = first; i * lay[1] - G.cam * lay[0] < W; i++) {
+          var h = lay[3] + ((i * 53 % 7 + 7) % 7) * 24, bx = i * lay[1] - G.cam * lay[0];
+          ctx.fillStyle = lay[2]; ctx.fillRect(bx, GY - h, lay[1] - 8, h + 80);
+          ctx.fillStyle = 'rgba(255,220,140,.5)';
+          for (y = GY - h + 14; y < GY - 20; y += 26) if ((i + y) % 3) ctx.fillRect(bx + 12 + (y % 2) * 22, y, 8, 10);
+        }
+      });
+      return;
+    }
     /* Fenster, weit hinten */
-    var off = -((G.cam * 0.2) % 300);
+    off = -((G.cam * 0.2) % 300);
     for (x = off - 300; x < W + 300; x += 300) {
       for (y = 70; y > top - 240; y -= 240) {
-        ctx.fillStyle = 'rgba(255,214,130,.20)';
+        ctx.fillStyle = th.win;
         rr(x + 100, y, 90, 120, 40); ctx.fill();
-        ctx.strokeStyle = 'rgba(15,25,45,.55)'; ctx.lineWidth = 4;
+        if (th.extra === 'moon') {
+          ctx.fillStyle = 'rgba(240,244,255,.75)'; ctx.beginPath(); ctx.arc(x + 165, y + 34, 13, 0, Math.PI * 2); ctx.fill();
+          ctx.fillRect(x + 118, y + 80, 3, 3); ctx.fillRect(x + 132, y + 30, 2, 2); ctx.fillRect(x + 170, y + 92, 2, 2);
+        }
+        ctx.strokeStyle = th.bar; ctx.lineWidth = 4;
         ctx.beginPath(); ctx.moveTo(x + 145, y); ctx.lineTo(x + 145, y + 120); ctx.moveTo(x + 100, y + 62); ctx.lineTo(x + 190, y + 62); ctx.stroke();
       }
     }
     /* Wandplatten und Rohre */
     off = -((G.cam * 0.45) % 360);
-    ctx.strokeStyle = 'rgba(10,20,40,.22)'; ctx.lineWidth = 2;
+    ctx.strokeStyle = th.seam; ctx.lineWidth = 2;
     ctx.beginPath();
     for (x = off - 360; x < W + 360; x += 120) { ctx.moveTo(x, top); ctx.lineTo(x, WH); }
     for (y = 280; y > top; y -= 120) { ctx.moveTo(0, y); ctx.lineTo(W, y); }
     ctx.stroke();
-    ctx.fillStyle = '#22344f'; ctx.fillRect(0, 22, W, 14);
-    ctx.fillStyle = '#2c4263'; ctx.fillRect(0, 24, W, 4);
+    ctx.fillStyle = th.pipe[0]; ctx.fillRect(0, 22, W, 14);
+    ctx.fillStyle = th.pipe[1]; ctx.fillRect(0, 24, W, 4);
     for (x = off - 360; x < W + 360; x += 360) {
-      ctx.fillStyle = '#22344f'; ctx.fillRect(x + 40, top, 12, 22 - top);
-      ctx.fillStyle = '#31496c'; ctx.fillRect(x + 34, 16, 24, 26);
+      ctx.fillStyle = th.pipe[0]; ctx.fillRect(x + 40, top, 12, 22 - top);
+      ctx.fillStyle = th.pipe[2]; ctx.fillRect(x + 34, 16, 24, 26);
       ctx.fillRect(x + 214, 18, 12, 22);
+    }
+    if (th.extra === 'glow') {               /* Kesselraum: warmer Schein von unten */
+      g = ctx.createLinearGradient(0, 160, 0, WH);
+      g.addColorStop(0, 'rgba(255,110,40,0)'); g.addColorStop(1, 'rgba(255,110,40,.28)');
+      ctx.fillStyle = g; ctx.fillRect(0, 160, W, bot - 160);
     }
   }
 
   function drawGround(r) {
     var x0 = Math.max(r.x, G.cam - 40), x1 = Math.min(r.x + r.w, G.cam + view.w + 40), x;
     if (x1 <= x0) return;
-    ctx.fillStyle = '#39465a'; ctx.fillRect(x0, r.y, x1 - x0, view.bot - r.y);
+    var th = G.theme;
+    ctx.fillStyle = th.ground; ctx.fillRect(x0, r.y, x1 - x0, view.bot - r.y);
     ctx.fillStyle = 'rgba(0,0,0,.18)';
     for (x = Math.floor(x0 / T) * T; x < x1; x += T) {
       if (x >= r.x) ctx.fillRect(x, r.y + 12, 2, view.bot - r.y);
@@ -970,11 +1064,11 @@ p{font-size:17px;line-height:1.4;margin:8px 0}
       }
       ctx.fillStyle = '#5b6675'; ctx.fillRect(x0, r.y + 12, x1 - x0, 3);
     } else {
-      ctx.fillStyle = '#8c9aab'; ctx.fillRect(x0, r.y, x1 - x0, 10);
-      ctx.fillStyle = '#c0cbd8'; ctx.fillRect(x0, r.y, x1 - x0, 3);
-      ctx.fillStyle = '#263243'; ctx.fillRect(x0, r.y + 10, x1 - x0, 2);
+      ctx.fillStyle = th.top; ctx.fillRect(x0, r.y, x1 - x0, 10);
+      ctx.fillStyle = th.hi; ctx.fillRect(x0, r.y, x1 - x0, 3);
+      ctx.fillStyle = th.line; ctx.fillRect(x0, r.y + 10, x1 - x0, 2);
     }
-    ctx.fillStyle = '#222d3d';
+    ctx.fillStyle = th.edge;
     if (r.edgeL) ctx.fillRect(r.x, r.y + 2, 3, view.bot - r.y);
     if (r.edgeR) ctx.fillRect(r.x + r.w - 3, r.y + 2, 3, view.bot - r.y);
     if (r.pitL) stripes(r.x, r.y, 20, 10);
@@ -984,20 +1078,21 @@ p{font-size:17px;line-height:1.4;margin:8px 0}
   function drawPit(q) {
     if (q.x + q.w < G.cam || q.x > G.cam + view.w) return;
     var y = GY + 46;
-    ctx.fillStyle = '#0c1424'; ctx.fillRect(q.x, y, q.w, view.bot - y);
-    ctx.fillStyle = '#24365a';
+    ctx.fillStyle = G.theme.pit; ctx.fillRect(q.x, y, q.w, view.bot - y);
+    ctx.fillStyle = G.theme.wave;
     for (var x = q.x; x < q.x + q.w; x += 20) ctx.fillRect(x, y + Math.sin(G.time * 3 + x) * 2, 12, 3);
   }
 
   function drawPlat(r) {
     if (r.x + r.w < G.cam || r.x > G.cam + view.w) return;
-    ctx.strokeStyle = 'rgba(15,25,45,.6)'; ctx.lineWidth = 3;
+    var th = G.theme;
+    ctx.strokeStyle = th.chain; ctx.lineWidth = 3;
     ctx.beginPath();
     ctx.moveTo(r.x + 8, r.y); ctx.lineTo(r.x + 8, view.top); ctx.moveTo(r.x + r.w - 8, r.y); ctx.lineTo(r.x + r.w - 8, view.top);
     ctx.stroke();
-    box(r.x, r.y, r.w, r.h, 3, r.move ? '#f2b441' : '#7f8da0', r.move ? '#7a4a00' : '#3a4658', 2);
-    ctx.fillStyle = r.move ? '#ffe3a0' : '#c9d3df'; ctx.fillRect(r.x + 2, r.y + 1, r.w - 4, 3);
-    ctx.fillStyle = r.move ? '#7a4a00' : '#3a4658';
+    box(r.x, r.y, r.w, r.h, 3, r.move ? '#f2b441' : th.plat, r.move ? '#7a4a00' : th.platLine, 2);
+    ctx.fillStyle = r.move ? '#ffe3a0' : th.platHi; ctx.fillRect(r.x + 2, r.y + 1, r.w - 4, 3);
+    ctx.fillStyle = r.move ? '#7a4a00' : th.platLine;
     for (var x = r.x + 10; x < r.x + r.w - 6; x += 20) ctx.fillRect(x, r.y + 7, 3, 3);
   }
 
@@ -1033,8 +1128,8 @@ p{font-size:17px;line-height:1.4;margin:8px 0}
     stripes(gx - 12, GY - 200 - lift, 24, 200);
     ctx.strokeStyle = '#1c1c1c'; ctx.lineWidth = 2; ctx.strokeRect(gx - 12, GY - 200 - lift, 24, 200);
     ctx.restore();
-    ctx.fillStyle = '#263245'; ctx.fillRect(gx - 20, view.top, 40, GY - 200 - view.top);
-    ctx.fillStyle = '#34445c'; ctx.fillRect(gx - 20, view.top, 6, GY - 200 - view.top);
+    ctx.fillStyle = G.theme.pillar; ctx.fillRect(gx - 20, view.top, 40, GY - 200 - view.top);
+    ctx.fillStyle = G.theme.pillarHi; ctx.fillRect(gx - 20, view.top, 6, GY - 200 - view.top);
     /* Maschine am Pfeiler: Zahnrad und Lampe */
     box(gx - 34, GY - 290, 68, 84, 8, '#2f3d54', '#182234', 3);
     cog(gx, GY - 258, 20, 8, st.solved ? G.time * 3 : 0.3, st.solved ? '#ffd54a' : '#7b8797', st.solved ? '#a8750a' : '#3d4756');
@@ -1295,11 +1390,12 @@ p{font-size:17px;line-height:1.4;margin:8px 0}
     });
     $('keys').hidden = touch;
     $('shopBank').textContent = '⚙️ ' + store.bank;
+    musicStop();
     G = newGame('mal', 'start');
     screen('start');
   }
   function startGame(topic) {
-    audioOn();
+    audioOn(); musicStart();
     input.left = input.right = input.jumpPressed = false;
     G = newGame(topic, 'play');
     resize();
@@ -1426,7 +1522,7 @@ p{font-size:17px;line-height:1.4;margin:8px 0}
   $('againBtn').addEventListener('click', function () { startGame(G.topic); });
   $('topicBtn').addEventListener('click', showStart);
   function muteLabel() { $('mute').textContent = store.mute ? '🔇' : '🔊'; }
-  $('mute').addEventListener('click', function () { store.mute = !store.mute; persist(); muteLabel(); audioOn(); this.blur(); });
+  $('mute').addEventListener('click', function () { store.mute = !store.mute; persist(); muteLabel(); audioOn(); musicVolume(); this.blur(); });
   muteLabel();
 
   /* ---------- Schleife ---------- */
@@ -1443,7 +1539,7 @@ p{font-size:17px;line-height:1.4;margin:8px 0}
 
   resize();
   showStart();
-  if (TEST) window.ROBI = { game: function () { return G; }, input: input, view: view, gen: GEN, bump: bump, hurt: hurt };
+  if (TEST) window.ROBI = { game: function () { return G; }, input: input, view: view, gen: GEN, bump: bump, hurt: hurt, music: music };
   requestAnimationFrame(frame);
 })();
 </script>

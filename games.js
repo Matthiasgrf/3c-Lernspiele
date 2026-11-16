@@ -9,5 +9,13 @@ window.GAMES = [
     age: "8–10 Jahre",
     path: "games/europaflug/",
     thumbnail: "games/europaflug/thumbnail.jpg"
+  },
+  {
+    id: "elisabeth",
+    title: "Elisabeth von Thüringen",
+    description: "Begleite Elisabeth durch ihr Leben und beantworte an 12 Stationen Fragen für den Religionsunterricht.",
+    age: "3. Klasse",
+    path: "games/elisabeth/",
+    thumbnail: "games/elisabeth/thumbnail.jpg"
   }
 ];

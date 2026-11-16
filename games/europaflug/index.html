@@ -666,6 +666,7 @@ function showWin(){
   var b=document.createElement('button');b.className='btn';b.textContent='Nochmal spielen';
   b.addEventListener('click',function(){visited={};score=0;save();updateScore();ov.classList.add('hidden');chooseTarget(false);refreshPins();state='fly';});
   card.appendChild(b);
+  var home=document.createElement('a');home.className='btn alt';home.href='../../';home.textContent='🏠 Alle Spiele';home.style.textDecoration='none';card.appendChild(home);
   tone([523,659,784,1047,1319]);
 }
 

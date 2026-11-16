@@ -17,5 +17,13 @@ window.GAMES = [
     age: "3. Klasse",
     path: "games/elisabeth/",
     thumbnail: "games/elisabeth/thumbnail.jpg"
+  },
+  {
+    id: "Sachunterricht-Getreide",
+    title: "Getreide-Abenteuer",
+    description: "Fahre mit dem Traktor über das Feld und löse an 10 Stationen Aufgaben rund ums Getreide.",
+    age: "3. Klasse · Sachunterricht",
+    path: "games/Sachunterricht-Getreide/",
+    thumbnail: "games/Sachunterricht-Getreide/thumbnail.jpg"
   }
 ];

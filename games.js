@@ -63,5 +63,12 @@ window.GAMES = [
     description: "Mähe mit Bauer Franz und seiner Sense das Feld und löse an 10 Stationen Aufgaben rund ums Getreide.",
     age: "3. Klasse",
     subject: "Sachunterricht"
+  },
+  {
+    id: "mathe-formen",
+    title: "Die Formen-Werkstatt",
+    description: "Hilf Füchsin Tilda in ihrer Werkstatt: Erkenne Figuren und Körper, falte Würfelnetze, spiegle und zähle Kästchen.",
+    age: "3. Klasse",
+    subject: "Mathe"
   }
 ];

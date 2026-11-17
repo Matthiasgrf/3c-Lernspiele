@@ -74,13 +74,15 @@ Startseite, ohne dass man es löschen muss. Die Reihenfolge in der Liste ist die
 | --- | --- |
 | `node tools/check.js` | prüft ohne Browser: Einträge in `games.js`, Dateien, Bildgröße, Pfade, fremde Server, Speicher-Schlüssel |
 | `node tools/smoke.js [id]` | öffnet Startseite und Spiele in Computer- und Handy-Größe, meldet JavaScript-Fehler, Screenshots in `test-ergebnisse/` |
+| `node tools/spieltest.js [id]` | spielt Spiele mit einer Testdatei in `tools/spieltests/` automatisch durch (bisher: `mathe-robi`) |
 | `python3 -m http.server 8000` | Seite lokal ansehen unter `http://localhost:8000` |
 
-`check.js` braucht nur Node. `smoke.js` und `thumbnail.js` brauchen zusätzlich Playwright
+`check.js` braucht nur Node. `smoke.js`, `spieltest.js` und `thumbnail.js` brauchen zusätzlich Playwright
 (`npm install` und einmalig `npx playwright install chromium`).
 
-Beide Prüfungen laufen bei jedem Push automatisch (GitHub → Actions → „Spiele prüfen“). Der Browser-Test
-spielt die Spiele nicht durch: Spielablauf und End-Bildschirm weiterhin von Hand ansehen.
+Alle drei Prüfungen laufen bei jedem Push automatisch (GitHub → Actions → „Spiele prüfen“). Durchgespielt
+werden nur Spiele mit einer Testdatei in `tools/spieltests/`. Bei allen anderen Spielablauf und End-Bildschirm
+weiterhin von Hand ansehen.
 
 ## Veröffentlichen
 

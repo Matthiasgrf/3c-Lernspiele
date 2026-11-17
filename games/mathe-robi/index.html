@@ -79,11 +79,17 @@ p{font-size:17px;line-height:1.4;margin:8px 0}
 .item.dear{opacity:.6}
 .item:focus-visible{outline:4px solid #16324f;outline-offset:2px}
 .stars .off{opacity:.2}
+#review{margin:8px 0 2px;padding:8px 12px;border-radius:14px;background:#fff4dc;font-size:16px}
+#review b{display:block;margin-bottom:2px}
+#review span{display:inline-block;margin:2px 6px;padding:2px 10px;border-radius:999px;background:#fff;font-weight:700;white-space:nowrap}
 .keys{font-size:15px;color:#4a6078}
+.turn{display:none;font-size:15px;font-weight:700;background:#fff4dc;border-radius:12px;padding:6px 10px}
+@media (orientation:portrait) and (pointer:coarse) and (max-width:600px){.turn{display:block}}
 #streak{position:absolute;right:calc(10px + env(safe-area-inset-right));top:calc(50px + env(safe-area-inset-top));font-size:15px;padding:5px 11px}
 [hidden]{display:none!important}
 @media (max-width:430px){.pill{font-size:14px;padding:6px 10px}.hud{gap:5px}#streak{font-size:13px;top:calc(46px + env(safe-area-inset-top))}}
-@media (max-height:430px){.card{padding:12px 18px}.intro,.keys{display:none}h1{font-size:22px}#question{font-size:22px;padding:3px 16px}
+@media (max-height:430px){.card{padding:12px 18px}.intro,.keys{display:none}h1{font-size:22px}#question{font-size:22px;padding:3px 16px}#feedback{font-size:14px;max-width:none}
+  #streak{top:auto;bottom:calc(8px + env(safe-area-inset-bottom));right:50%;transform:translateX(50%)}
   .btn{min-height:46px;padding:8px 10px;font-size:17px}.group .btn{min-height:40px;padding:5px 8px;font-size:16px}.group .list{gap:6px}p{font-size:15px;margin:5px 0}.stars{font-size:40px}}
 </style>
 </head>
@@ -96,8 +102,8 @@ p{font-size:17px;line-height:1.4;margin:8px 0}
     <span class="pill" id="progress"></span>
     <span class="pill" id="gears"></span>
     <button class="pill" id="mute" aria-label="Ton an oder aus">🔊</button>
-    <span class="pill" id="streak"></span>
   </div>
+  <span class="pill" id="streak" hidden></span>
   <div id="banner" hidden>
     <div id="question"></div>
     <div id="feedback" aria-live="polite"></div>
@@ -115,6 +121,7 @@ p{font-size:17px;line-height:1.4;margin:8px 0}
       <h1>🤖 Robi in der Zahlenfabrik</h1>
       <button class="pill" id="shopBtn">🔧 Werkstatt <span id="shopBank"></span></button>
     </div>
+    <p class="turn">📱 Dreh dein Handy quer – dann ist das Bild größer.</p>
     <p class="intro">Die Maschinen stehen still! Hilf Robi: Spring von unten gegen den Block mit der richtigen Zahl.
       <b>Was möchtest du üben?</b></p>
     <div class="groups">
@@ -160,6 +167,7 @@ p{font-size:17px;line-height:1.4;margin:8px 0}
     <div class="stars" id="stars"></div>
     <h1>Die Fabrik läuft wieder!</h1>
     <p id="winText"></p>
+    <div id="review"></div>
     <button class="btn main" id="againBtn">🔄 Nochmal spielen</button>
     <button class="btn" id="topicBtn">📋 Anderes Thema</button>
     <button class="btn" id="shopBtn2">🔧 Robis Werkstatt</button>
@@ -225,15 +233,32 @@ p{font-size:17px;line-height:1.4;margin:8px 0}
     return row.items.filter(function (it) { return it.id === id; })[0] || row.items[0];
   }
   /* bank = Zahnräder auf dem Konto, own = gekaufte Teile, wear = was Robi gerade trägt. */
-  var store = { best: {}, mute: false, bank: 0, own: [], wear: {} };
+  var store = { best: {}, mute: false, bank: 0, own: [], wear: {}, lvl: {}, again: {}, music: true };
   try {
     var raw = JSON.parse(localStorage.getItem(SAVE));
     if (raw && typeof raw === 'object') {
       if (raw.best && typeof raw.best === 'object') store.best = raw.best;
-      store.mute = !!raw.mute;
+      store.mute = !!raw.mute; store.music = raw.music !== false;
       store.bank = Math.max(0, Math.floor(Number(raw.bank)) || 0);
       if (Array.isArray(raw.own)) store.own = raw.own.filter(function (v) { return typeof v === 'string'; });
       if (raw.wear && typeof raw.wear === 'object') store.wear = raw.wear;
+      if (raw.lvl && typeof raw.lvl === 'object') {
+        Object.keys(raw.lvl).forEach(function (k) { var v = Math.floor(Number(raw.lvl[k])); if (v >= 1 && v <= 5) store.lvl[k] = v; });
+      }
+    }
+  } catch (e) {}
+  /* Eine gespeicherte Aufgabe wird nur übernommen, wenn sie vollständig und stimmig ist. */
+  function validQ(q) {
+    return !!q && typeof q === 'object' && [q.text, q.exp, q.tip, q.full].every(function (v) { return typeof v === 'string' && v.length < 200; }) &&
+      Array.isArray(q.opts) && q.opts.length === 3 && q.opts.every(function (v) { return typeof v === 'number' && v === Math.floor(v) && v > 0; }) &&
+      q.opts.indexOf(q.ans) >= 0 && q.opts[0] !== q.opts[1] && q.opts[0] !== q.opts[2] && q.opts[1] !== q.opts[2];
+  }
+  function plainQ(q) { return { text: q.text, ans: q.ans, opts: q.opts.slice(), exp: q.exp, tip: q.tip, full: q.full }; }
+  try {
+    if (raw && raw.again && typeof raw.again === 'object') {
+      Object.keys(raw.again).forEach(function (k) {
+        if (Array.isArray(raw.again[k])) store.again[k] = raw.again[k].filter(validQ).map(plainQ).slice(-6);
+      });
     }
   } catch (e) {}
   function owns(it) { return it.cost === 0 || store.own.indexOf(it.id) >= 0; }
@@ -307,7 +332,7 @@ p{font-size:17px;line-height:1.4;margin:8px 0}
       }
     } catch (e) {}
   }
-  function musicVolume() { if (music.out) music.out.gain.value = store.mute ? 0 : 1; }
+  function musicVolume() { if (music.out) music.out.gain.value = store.mute || !store.music ? 0 : 1; }
   function musicStart() {
     if (!actx) return;
     try {
@@ -326,155 +351,330 @@ p{font-size:17px;line-height:1.4;margin:8px 0}
     for (var i = a.length - 1; i > 0; i--) { var j = ri(0, i), t = a[i]; a[i] = a[j]; a[j] = t; }
     return a;
   }
-  /* Baut eine Aufgabe mit zwei falschen Antworten aus typischen Fehlern. */
-  function makeQ(text, ans, cands, exp, max) {
-    var seen = {}, wrong = [];
+  /* Baut eine Aufgabe mit zwei falschen Antworten aus typischen Fehlern (cands).
+     exp = Rechenweg, der nach der richtigen Antwort erscheint. tip = Hilfe nach einem Fehler, verrät die Lösung nicht.
+     full = gelöste Aufgabe für den Rückblick am Ende. max = größte erlaubte falsche Antwort. */
+  function makeQ(o) {
+    var seen = {}, wrong = [], ans = o.ans, max = o.max || 1000;
     seen[ans] = true;
-    shuffle(cands).forEach(function (c) {
-      if (wrong.length < 2 && c > 0 && c <= (max || 1000) && !seen[c]) { seen[c] = true; wrong.push(c); }
+    shuffle(o.cands).forEach(function (c) {
+      if (wrong.length < 2 && c > 0 && c <= max && c === Math.floor(c) && !seen[c]) { seen[c] = true; wrong.push(c); }
     });
     for (var k = 1; wrong.length < 2; k++) {
       [ans + k, ans - k].forEach(function (c) {
         if (wrong.length < 2 && c > 0 && !seen[c]) { seen[c] = true; wrong.push(c); }
       });
     }
-    return { text: text, ans: ans, opts: shuffle([ans].concat(wrong)), exp: exp };
+    return { text: o.text, ans: ans, opts: shuffle([ans].concat(wrong)), exp: o.exp, tip: o.tip, full: o.full || o.text.replace('?', ans) };
   }
+  function pick(list) { return list[ri(0, list.length - 1)]; }
+
+  /* Einmaleins-Reihen je Stufe: erst die leichten, zum Schluss nur noch die schweren. */
+  var ROWS = [null, [2, 5, 10], [2, 3, 4, 5, 10], [2, 3, 4, 5, 6, 7, 8, 9, 10], [6, 7, 8, 9], [6, 7, 8, 9]];
+  /* Tipp zum Einmaleins über eine leichtere Nachbaraufgabe. */
+  function malTip(a, b) {
+    var order = [10, 2, 5, 4, 9, 3, 6, 7, 8], pre = '', h;
+    if (order.indexOf(b) < order.indexOf(a)) { pre = a + ' · ' + b + ' ist dasselbe wie ' + b + ' · ' + a + '. '; h = a; a = b; b = h; }
+    if (a === 10) return 'Tipp: ' + pre + 'Mal 10 heißt: eine Null anhängen.';
+    if (a === 2) return 'Tipp: ' + pre + 'Das ist das Doppelte von ' + b + '.';
+    if (a === 5) return 'Tipp: ' + pre + 'Rechne erst 10 · ' + b + ' = ' + (10 * b) + '. Nimm davon die Hälfte.';
+    if (a === 4) return 'Tipp: ' + pre + 'Rechne erst 2 · ' + b + ' = ' + (2 * b) + '. Verdopple das noch einmal.';
+    if (a === 9) return 'Tipp: ' + pre + 'Rechne erst 10 · ' + b + ' = ' + (10 * b) + '. Zieh dann einmal ' + b + ' ab.';
+    if (a === 3) return 'Tipp: ' + pre + 'Rechne erst 2 · ' + b + ' = ' + (2 * b) + '. Dann noch einmal ' + b + ' dazu.';
+    return 'Tipp: ' + pre + 'Rechne erst 5 · ' + b + ' = ' + (5 * b) + '. Dann noch ' + (a === 6 ? 'einmal ' : (a - 5) + '-mal ') + b + ' dazu.';
+  }
+  /* Schrittweise rechnen: y wird in Hunderter, Zehner und Einer zerlegt. sign = 1 für plus, -1 für minus. */
+  function stepwise(x, y, sign) {
+    var op = sign > 0 ? ' + ' : ' − ', cur = x, txt = [];
+    var parts = [Math.floor(y / 100) * 100, Math.floor(y % 100 / 10) * 10, y % 10].filter(function (v) { return v > 0; });
+    parts.forEach(function (v, i) {
+      var next = cur + sign * v;
+      txt.push((i === 0 ? 'Erst ' + cur : 'dann') + op + v + ' = ' + next);
+      cur = next;
+    });
+    return { exp: txt.join(', ') + '.', tip: 'Tipp: Rechne zuerst ' + x + op + parts[0] + '. Dann kommt der Rest.' };
+  }
+  /* Tipp zum Verdoppeln und Halbieren: die Zahl in zwei bequeme Teile zerlegen. */
+  function splitTip(n, half) {
+    var a = n >= 100 ? Math.floor(n / 100) * 100 : Math.floor(n / 10) * 10, b;
+    if (half && n < 100 && (a / 10) % 2) a -= 10;
+    b = n - a;
+    if (a === 0 || b === 0) return half ? 'Tipp: Welche Zahl plus sich selbst ergibt ' + n + '?' : 'Tipp: Rechne ' + n + ' + ' + n + '.';
+    return 'Tipp: ' + (half ? 'Halbiere' : 'Verdopple') + ' erst ' + a + ', dann ' + b + '. Zähl beides zusammen.';
+  }
+  var ROUND_TIP = { z: 'Tipp: Schau auf die Einer. Bei 0 bis 4 rundest du ab, bei 5 bis 9 auf.',
+    h: 'Tipp: Schau auf die Zehner. Bei 0 bis 4 rundest du ab, bei 5 bis 9 auf.' };
+
+  /* Aufgaben für jedes Thema in fünf Stufen (s = 1 leicht … 5 schwer). Stufe 3 ist der Stoff der 3. Klasse im Kern. */
   var GEN = {
-    mal: function () {
-      var a = ri(2, 10), b = ri(2, 10), r = a * b;
-      return makeQ(a + ' · ' + b + ' = ?', r, [a * (b + 1), a * (b - 1), (a + 1) * b, (a - 1) * b],
-        a + ' · ' + b + ' = ' + r + '.' + (a !== b ? ' Auch ' + b + ' · ' + a + ' = ' + r + '.' : ''));
+    mal: function (s) {
+      var a = pick(ROWS[s]), b = s === 5 ? ri(6, 9) : s === 4 ? ri(3, 9) : ri(2, 10), h, r, exp;
+      if (ri(0, 1)) { h = a; a = b; b = h; }
+      r = a * b;
+      exp = a + ' · ' + b + ' = ' + r + '.' + (a !== b ? ' Auch ' + b + ' · ' + a + ' = ' + r + '.' : '');
+      if (s === 5 && ri(0, 1)) {
+        return makeQ({ text: '? · ' + b + ' = ' + r, ans: a, cands: [a + 1, a - 1, a + 2, a - 2], exp: exp,
+          tip: 'Tipp: Welche Zahl mal ' + b + ' ergibt ' + r + '? Geh die ' + b + 'er-Reihe durch.' });
+      }
+      return makeQ({ text: a + ' · ' + b + ' = ?', ans: r, cands: [a * (b + 1), a * (b - 1), (a + 1) * b, (a - 1) * b], exp: exp, tip: malTip(a, b) });
     },
-    geteilt: function () {
-      var b = ri(2, 10), q = ri(2, 10), n = b * q;
-      return makeQ(n + ' : ' + b + ' = ?', q, [q + 1, q - 1, q + 2, q - 2],
-        n + ' : ' + b + ' = ' + q + ', denn ' + q + ' · ' + b + ' = ' + n + '.');
+    geteilt: function (s) {
+      var b = pick(ROWS[s]), q = s === 5 ? ri(6, 9) : s === 4 ? ri(3, 9) : ri(2, 10), n = b * q;
+      var exp = n + ' : ' + b + ' = ' + q + ', denn ' + q + ' · ' + b + ' = ' + n + '.';
+      if (s === 5 && ri(0, 1)) {
+        return makeQ({ text: n + ' : ? = ' + q, ans: b, cands: [b + 1, b - 1, b + 2, b - 2], exp: exp,
+          tip: 'Tipp: ' + q + ' mal welche Zahl ergibt ' + n + '?' });
+      }
+      return makeQ({ text: n + ' : ' + b + ' = ?', ans: q, cands: [q + 1, q - 1, q + 2, q - 2], exp: exp,
+        tip: 'Tipp: Welche Zahl mal ' + b + ' ergibt ' + n + '? Geh die ' + b + 'er-Reihe durch.' });
     },
-    plus: function () {
-      var kind = ri(1, 3), x, r;
-      if (kind === 1) {                      /* 340 + 250 */
-        var h = ri(1, 5), t = ri(1, 9), y = h * 100 + t * 10;
-        x = ri(11, 99 - y / 10) * 10; r = x + y;
-        return makeQ(x + ' + ' + y + ' = ?', r, [r + 10, r - 10, r + 100, r - 100],
-          'Erst ' + x + ' + ' + (h * 100) + ' = ' + (x + h * 100) + ', dann + ' + (t * 10) + ' = ' + r + '.');
+    plus: function (s) {
+      var x, y, r, st, t1, kind = s === 3 ? ri(1, 3) : 1;
+      if (s === 1) {
+        if (ri(0, 1)) {                      /* 340 + 200 */
+          y = ri(1, 5) * 100; x = ri(11, 99 - y / 10) * 10; r = x + y;
+          return makeQ({ text: x + ' + ' + y + ' = ?', ans: r, cands: [r + 10, r - 10, r + 100, r - 100],
+            exp: 'Nur die Hunderter ändern sich: ' + x + ' + ' + y + ' = ' + r + '.',
+            tip: 'Tipp: Schau nur auf die Hunderter. Die Zehner bleiben gleich.' });
+        }
+        t1 = ri(1, 8); x = ri(1, 9) * 100 + t1 * 10; y = ri(1, 9 - t1) * 10; r = x + y;      /* 340 + 50 */
+        return makeQ({ text: x + ' + ' + y + ' = ?', ans: r, cands: [r + 10, r - 10, r + 100, r - 100],
+          exp: 'Nur die Zehner ändern sich: ' + x + ' + ' + y + ' = ' + r + '.',
+          tip: 'Tipp: Schau nur auf die Zehner. Die Hunderter bleiben gleich.' });
       }
       if (kind === 2) {                      /* 467 + 8 mit Zehnerübergang */
         var o = ri(3, 9), e = ri(11 - o, 9), base = ri(10, 98) * 10, s1 = 10 - o;
         x = base + o; r = x + e;
-        return makeQ(x + ' + ' + e + ' = ?', r, [r + 10, r - 10, r + 1, r - 1, r - 2],
-          'Erst ' + x + ' + ' + s1 + ' = ' + (base + 10) + ', dann + ' + (e - s1) + ' = ' + r + '.');
+        return makeQ({ text: x + ' + ' + e + ' = ?', ans: r, cands: [r + 10, r - 10, r + 1, r - 1, r - 2],
+          exp: 'Erst ' + x + ' + ' + s1 + ' = ' + (base + 10) + ', dann + ' + (e - s1) + ' = ' + r + '.',
+          tip: 'Tipp: Rechne zuerst bis zum nächsten Zehner: ' + x + ' + ' + s1 + '.' });
       }
-      var goal = ri(2, 10) * 100;            /* 340 + ? = 400 */
-      r = ri(1, 9) * 10; x = goal - r;
-      return makeQ(x + ' + ? = ' + goal, r, [r + 10, r - 10, 100 - r, r + 20],
-        'Von ' + x + ' bis ' + goal + ' fehlen ' + r + '.');
+      if (kind === 3) {                      /* 340 + ? = 400 */
+        var goal = ri(2, 10) * 100;
+        r = ri(1, 9) * 10; x = goal - r;
+        return makeQ({ text: x + ' + ? = ' + goal, ans: r, cands: [r + 10, r - 10, 100 - r, r + 20],
+          exp: 'Von ' + x + ' bis ' + goal + ' fehlen ' + r + '.',
+          tip: 'Tipp: Zähle in Zehnerschritten von ' + x + ' bis ' + goal + '.' });
+      }
+      if (s === 2) {                         /* 340 + 250 ohne Übergang */
+        t1 = ri(1, 8); var h1 = ri(1, 8);
+        x = h1 * 100 + t1 * 10; y = ri(1, 9 - h1) * 100 + ri(1, 9 - t1) * 10;
+      } else if (s === 3) {                  /* 340 + 280 */
+        y = ri(1, 5) * 100 + ri(1, 9) * 10; x = ri(11, 99 - y / 10) * 10;
+      } else if (s === 4) {                  /* 345 + 38 */
+        do { x = ri(101, 899); y = ri(12, 89); } while (y % 10 === 0 || x % 10 === 0 || x + y > 999);
+      } else {                               /* 345 + 278 */
+        do { x = ri(101, 799); y = ri(101, 899); } while (y % 10 === 0 || x % 10 === 0 || x + y > 999);
+      }
+      r = x + y; st = stepwise(x, y, 1);
+      return makeQ({ text: x + ' + ' + y + ' = ?', ans: r, exp: st.exp, tip: st.tip,
+        cands: s >= 4 ? [r + 10, r - 10, r + 1, r - 1, r + 100, r - 100] : [r + 10, r - 10, r + 100, r - 100] });
     },
-    minus: function () {
-      var x, r;
-      if (ri(1, 2) === 1) {                  /* 580 − 240 */
-        var h = ri(1, 5), t = ri(1, 9), y = h * 100 + t * 10;
-        x = ri(y / 10 + 1, 99) * 10; r = x - y;
-        return makeQ(x + ' − ' + y + ' = ?', r, [r + 10, r - 10, r + 100, r - 100],
-          'Erst ' + x + ' − ' + (h * 100) + ' = ' + (x - h * 100) + ', dann − ' + (t * 10) + ' = ' + r + '.');
+    minus: function (s) {
+      var x, y, r, st, t1, kind = s === 3 ? ri(1, 2) : 1;
+      if (s === 1) {
+        if (ri(0, 1)) {                      /* 720 − 300 */
+          y = ri(1, 5) * 100; x = ri(y / 10 + 1, 99) * 10; r = x - y;
+          return makeQ({ text: x + ' − ' + y + ' = ?', ans: r, cands: [r + 10, r - 10, r + 100, r - 100],
+            exp: 'Nur die Hunderter ändern sich: ' + x + ' − ' + y + ' = ' + r + '.',
+            tip: 'Tipp: Schau nur auf die Hunderter. Die Zehner bleiben gleich.' });
+        }
+        t1 = ri(2, 9); x = ri(1, 9) * 100 + t1 * 10; y = ri(1, t1 - 1) * 10; r = x - y;      /* 370 − 50 */
+        return makeQ({ text: x + ' − ' + y + ' = ?', ans: r, cands: [r + 10, r - 10, r + 100, r - 100],
+          exp: 'Nur die Zehner ändern sich: ' + x + ' − ' + y + ' = ' + r + '.',
+          tip: 'Tipp: Schau nur auf die Zehner. Die Hunderter bleiben gleich.' });
       }
-      var o = ri(1, 6), e = ri(o + 1, 9), base = ri(10, 99) * 10;   /* 503 − 7 mit Zehnerübergang */
-      x = base + o; r = x - e;
-      return makeQ(x + ' − ' + e + ' = ?', r, [r + 10, r - 10, r + 1, r - 1, r + 2],
-        'Erst ' + x + ' − ' + o + ' = ' + base + ', dann − ' + (e - o) + ' = ' + r + '.');
+      if (kind === 2) {                      /* 503 − 7 mit Zehnerübergang */
+        var o = ri(1, 6), e = ri(o + 1, 9), base = ri(10, 99) * 10;
+        x = base + o; r = x - e;
+        return makeQ({ text: x + ' − ' + e + ' = ?', ans: r, cands: [r + 10, r - 10, r + 1, r - 1, r + 2],
+          exp: 'Erst ' + x + ' − ' + o + ' = ' + base + ', dann − ' + (e - o) + ' = ' + r + '.',
+          tip: 'Tipp: Rechne zuerst zurück bis zum Zehner: ' + x + ' − ' + o + '.' });
+      }
+      if (s === 2) {                         /* 580 − 240 ohne Übergang */
+        t1 = ri(2, 9); var h1 = ri(2, 9);
+        x = h1 * 100 + t1 * 10; y = ri(1, h1 - 1) * 100 + ri(1, t1 - 1) * 10;
+      } else if (s === 3) {                  /* 520 − 240 */
+        y = ri(1, 5) * 100 + ri(1, 9) * 10; x = ri(y / 10 + 1, 99) * 10;
+      } else if (s === 4) {                  /* 345 − 38 */
+        do { x = ri(201, 999); y = ri(12, 89); } while (y % 10 === 0 || x % 10 === 0);
+      } else {                               /* 532 − 187 */
+        do { x = ri(301, 999); y = ri(101, x - 11); } while (y % 10 === 0 || x % 10 === 0);
+      }
+      r = x - y; st = stepwise(x, y, -1);
+      return makeQ({ text: x + ' − ' + y + ' = ?', ans: r, exp: st.exp, tip: st.tip,
+        cands: s >= 4 ? [r + 10, r - 10, r + 1, r - 1, r + 100, r - 100] : [r + 10, r - 10, r + 100, r - 100] });
     },
-    zehner: function () {                    /* Einmaleins mit Zehnerzahlen: 6 · 70, 60 · 7, 420 : 6 */
-      var a = ri(2, 9), b = ri(2, 9), r = a * b * 10, kind = ri(1, 3);
-      var near = [a * b, a * (b + 1) * 10, a * (b - 1) * 10, (a + 1) * b * 10, (a - 1) * b * 10];
-      if (kind === 1) return makeQ(a + ' · ' + (b * 10) + ' = ?', r, near,
-        a + ' · ' + b + ' = ' + (a * b) + ', also ' + a + ' · ' + (b * 10) + ' = ' + r + '.');
-      if (kind === 2) return makeQ((a * 10) + ' · ' + b + ' = ?', r, near,
-        a + ' · ' + b + ' = ' + (a * b) + ', also ' + (a * 10) + ' · ' + b + ' = ' + r + '.');
-      return makeQ(r + ' : ' + a + ' = ?', b * 10, [b, (b + 1) * 10, (b - 1) * 10, a * 10],
-        (a * b) + ' : ' + a + ' = ' + b + ', also ' + r + ' : ' + a + ' = ' + (b * 10) + '.');
+    zehner: function (s) {
+      var a, b, r, kind, near;
+      if (s === 1) {                         /* 7 · 10 und 70 : 10 */
+        a = ri(2, 10);
+        if (ri(0, 2)) {
+          return makeQ({ text: (ri(0, 1) ? a + ' · 10' : '10 · ' + a) + ' = ?', ans: a * 10, cands: [a, a * 100, (a + 1) * 10, (a - 1) * 10],
+            exp: a + ' · 10 = ' + (a * 10) + '. Mal 10 heißt: eine Null anhängen.', tip: 'Tipp: Mal 10 heißt: eine Null anhängen.' });
+        }
+        return makeQ({ text: (a * 10) + ' : 10 = ?', ans: a, cands: [a * 10, a + 1, a - 1, a + 10],
+          exp: a + ' · 10 = ' + (a * 10) + ', also ' + (a * 10) + ' : 10 = ' + a + '.', tip: 'Tipp: Welche Zahl mal 10 ergibt ' + (a * 10) + '?' });
+      }
+      if (s === 2) { a = ri(2, 5); b = ri(2, 5); kind = ri(1, 2); }
+      else if (s === 3) { a = ri(2, 9); b = ri(2, 9); kind = ri(1, 3); }
+      else if (s === 4) { a = ri(3, 9); b = ri(3, 9); kind = ri(1, 4); }
+      else { a = ri(4, 9); b = ri(4, 9); kind = ri(3, 6); }
+      r = a * b * 10;
+      near = [a * b, a * (b + 1) * 10, a * (b - 1) * 10, (a + 1) * b * 10, (a - 1) * b * 10];
+      if (kind === 1) return makeQ({ text: a + ' · ' + (b * 10) + ' = ?', ans: r, cands: near,
+        exp: a + ' · ' + b + ' = ' + (a * b) + ', also ' + a + ' · ' + (b * 10) + ' = ' + r + '.',
+        tip: 'Tipp: Rechne zuerst ' + a + ' · ' + b + '. Dann eine Null anhängen.' });
+      if (kind === 2) return makeQ({ text: (a * 10) + ' · ' + b + ' = ?', ans: r, cands: near,
+        exp: a + ' · ' + b + ' = ' + (a * b) + ', also ' + (a * 10) + ' · ' + b + ' = ' + r + '.',
+        tip: 'Tipp: Rechne zuerst ' + a + ' · ' + b + '. Dann eine Null anhängen.' });
+      if (kind === 3) return makeQ({ text: r + ' : ' + a + ' = ?', ans: b * 10, cands: [b, (b + 1) * 10, (b - 1) * 10, a * 10],
+        exp: (a * b) + ' : ' + a + ' = ' + b + ', also ' + r + ' : ' + a + ' = ' + (b * 10) + '.',
+        tip: 'Tipp: Rechne zuerst ' + (a * b) + ' : ' + a + '. Dann eine Null anhängen.' });
+      if (kind === 4) return makeQ({ text: r + ' : ' + (a * 10) + ' = ?', ans: b, cands: [b * 10, b + 1, b - 1, a],
+        exp: (a * b) + ' : ' + a + ' = ' + b + ', also ' + r + ' : ' + (a * 10) + ' = ' + b + '.',
+        tip: 'Tipp: Lass bei beiden Zahlen die Null weg: ' + (a * b) + ' : ' + a + '.' });
+      if (kind === 5) return makeQ({ text: '? · ' + (a * 10) + ' = ' + r, ans: b, cands: [b * 10, b + 1, b - 1, a],
+        exp: b + ' · ' + a + ' = ' + (a * b) + ', also ' + b + ' · ' + (a * 10) + ' = ' + r + '.',
+        tip: 'Tipp: Welche Zahl mal ' + a + ' ergibt ' + (a * b) + '?' });
+      return makeQ({ text: r + ' : ? = ' + (b * 10), ans: a, cands: [a * 10, a + 1, a - 1, b],
+        exp: (a * b) + ' : ' + a + ' = ' + b + ', also ' + r + ' : ' + a + ' = ' + (b * 10) + '.',
+        tip: 'Tipp: ' + b + ' mal welche Zahl ergibt ' + (a * b) + '?' });
     },
-    doppelt: function () {
-      var kind = ri(1, 4), n, r;
-      if (kind <= 2) {
-        n = kind === 1 ? ri(12, 50) : ri(6, 49) * 10; r = n * 2;
-        return makeQ('Das Doppelte von ' + n + ' = ?', r,
-          kind === 1 ? [r + 2, r - 2, r + 10, r - 10] : [r + 10, r - 10, r + 20, r - 20, r + 100, r - 100],
-          n + ' + ' + n + ' = ' + r + '.');
+    doppelt: function (s) {
+      var n, r;
+      if (ri(0, 1)) {
+        n = s === 1 ? (ri(0, 1) ? ri(2, 10) : ri(1, 5) * 10) : s === 2 ? (ri(0, 1) ? ri(11, 25) : ri(6, 20) * 10) :
+          s === 3 ? (ri(0, 1) ? ri(12, 50) : ri(6, 49) * 10) : s === 4 ? ri(101, 249) : ri(251, 499);
+        r = n * 2;
+        return makeQ({ text: 'Das Doppelte von ' + n + ' = ?', ans: r, exp: n + ' + ' + n + ' = ' + r + '.', tip: splitTip(n, false),
+          cands: s >= 4 ? [r + 10, r - 10, r + 2, r - 2, r + 100, r - 100] : n % 10 ? [r + 2, r - 2, r + 10, r - 10] : [r + 10, r - 10, r + 20, r - 20, r + 100, r - 100] });
       }
-      r = kind === 3 ? ri(12, 50) : (ri(1, 2) === 1 ? ri(6, 50) * 10 : ri(1, 9) * 10 + 5); n = r * 2;
-      return makeQ('Die Hälfte von ' + n + ' = ?', r,
-        kind === 3 ? [r + 1, r - 1, r + 5, r - 5, r + 10, r - 10] : [r + 10, r - 10, r + 5, r - 5, r + 50, r - 50],
-        'Die Hälfte von ' + n + ' ist ' + r + ', denn ' + r + ' + ' + r + ' = ' + n + '.');
+      r = s === 1 ? (ri(0, 1) ? ri(2, 10) : ri(1, 5) * 10) : s === 2 ? (ri(0, 1) ? ri(11, 25) : ri(6, 20) * 10) :
+        s === 3 ? (ri(0, 2) === 0 ? ri(12, 50) : ri(0, 1) ? ri(6, 50) * 10 : ri(1, 9) * 10 + 5) : s === 4 ? ri(10, 49) * 10 + 5 : ri(101, 499);
+      n = r * 2;
+      return makeQ({ text: 'Die Hälfte von ' + n + ' = ?', ans: r, tip: splitTip(n, true),
+        exp: 'Die Hälfte von ' + n + ' ist ' + r + ', denn ' + r + ' + ' + r + ' = ' + n + '.',
+        cands: s === 5 ? [r + 10, r - 10, r + 1, r - 1, r + 100, r - 100] : r < 60 && r % 10 ? [r + 1, r - 1, r + 5, r - 5, r + 10, r - 10] : [r + 10, r - 10, r + 5, r - 5, r + 50, r - 50] });
     },
-    nachbar: function () {
-      var kind = ri(1, 4), n, r, lo, d;
-      if (kind === 1) {
-        n = ri(1, 3) === 1 ? ri(2, 10) * 100 : ri(1, 2) === 1 ? ri(11, 99) * 10 : ri(101, 999); r = n - 1;
-        return makeQ('Vorgänger von ' + n + ' = ?', r, [n + 1, n - 10, n - 2, n - 11, n - 100],
-          'Der Vorgänger ist um 1 kleiner: ' + n + ' − 1 = ' + r + '.');
+    nachbar: function (s) {
+      var kind = pick([null, ['v', 'n'], ['V', 'N'], ['V', 'N', 'z', 'z'], ['z', 'h', 'Z', 'h'], ['Z', 'H', 'k', 'K']][s]), n, r, lo, d;
+      if (kind === 'v' || kind === 'V') {
+        if (kind === 'V') n = ri(0, 1) ? ri(2, 10) * 100 : ri(11, 99) * 10;
+        else do { n = ri(11, 998); } while (n % 10 === 0);
+        r = n - 1;
+        return makeQ({ text: 'Vorgänger von ' + n + ' = ?', ans: r, cands: [n + 1, n - 10, n - 2, n - 11, n - 100],
+          exp: 'Der Vorgänger ist um 1 kleiner: ' + n + ' − 1 = ' + r + '.', tip: 'Tipp: Vorgänger heißt: 1 weniger. Zähl von ' + n + ' eins zurück.' });
       }
-      if (kind === 2) {
-        n = ri(1, 3) === 1 ? ri(1, 8) * 100 + 99 : ri(1, 2) === 1 ? ri(10, 98) * 10 + 9 : ri(101, 998); r = n + 1;
-        return makeQ('Nachfolger von ' + n + ' = ?', r, [n - 1, n + 10, n + 2, n + 11, n + 100],
-          'Der Nachfolger ist um 1 größer: ' + n + ' + 1 = ' + r + '.');
+      if (kind === 'n' || kind === 'N') {
+        if (kind === 'N') n = ri(0, 1) ? ri(1, 8) * 100 + 99 : ri(10, 98) * 10 + 9;
+        else do { n = ri(11, 998); } while (n % 10 === 9);
+        r = n + 1;
+        return makeQ({ text: 'Nachfolger von ' + n + ' = ?', ans: r, cands: [n - 1, n + 10, n + 2, n + 11, n + 100],
+          exp: 'Der Nachfolger ist um 1 größer: ' + n + ' + 1 = ' + r + '.', tip: 'Tipp: Nachfolger heißt: 1 mehr. Zähl von ' + n + ' eins weiter.' });
       }
-      if (kind === 3) {
-        do { n = ri(101, 989); } while (n % 10 === 0);
+      if (kind === 'z' || kind === 'Z') {     /* auf Zehner runden; Z = Grenzfälle mit 5 Einern oder nahe am Hunderter */
+        if (kind === 'Z') n = ri(0, 1) ? ri(10, 98) * 10 + 5 : ri(1, 8) * 100 + 90 + ri(5, 9);
+        else do { n = ri(101, 989); } while (n % 10 === 0 || n % 10 === 5);
         d = n % 10; lo = n - d; r = d >= 5 ? lo + 10 : lo;
-        return makeQ('Runde ' + n + ' auf Zehner!', r, [d >= 5 ? lo : lo + 10, Math.round(n / 100) * 100, r + 10, r - 10],
-          n + ' liegt zwischen ' + lo + ' und ' + (lo + 10) + '. Bei ' + (d === 1 ? '1 Einer' : d + ' Einern') +
-          ' rundet man ' + (d >= 5 ? 'auf' : 'ab') + '.');
+        return makeQ({ text: 'Runde ' + n + ' auf Zehner!', ans: r, cands: [d >= 5 ? lo : lo + 10, Math.round(n / 100) * 100, r + 10, r - 10],
+          exp: n + ' liegt zwischen ' + lo + ' und ' + (lo + 10) + '. Bei ' + (d === 1 ? '1 Einer' : d + ' Einern') + ' rundet man ' + (d >= 5 ? 'auf' : 'ab') + '.',
+          tip: ROUND_TIP.z, full: n + ' auf Zehner gerundet: ' + r });
       }
-      do { n = ri(101, 949); } while (n % 100 === 0);
-      d = Math.floor(n % 100 / 10); lo = n - n % 100; r = d >= 5 ? lo + 100 : lo;
-      return makeQ('Runde ' + n + ' auf Hunderter!', r, [d >= 5 ? lo : lo + 100, Math.round(n / 10) * 10, r + 100, r - 100],
-        n + ' liegt zwischen ' + lo + ' und ' + (lo + 100) + '. Bei ' + (d === 1 ? '1 Zehner' : d + ' Zehnern') +
-        ' rundet man ' + (d >= 5 ? 'auf' : 'ab') + '.');
+      if (kind === 'h' || kind === 'H') {     /* auf Hunderter runden; H = Grenzfälle um 50 */
+        if (kind === 'H') n = ri(1, 9) * 100 + ri(45, 54);
+        else do { n = ri(101, 949); } while (n % 100 === 0 || Math.floor(n % 100 / 10) === 5);
+        d = Math.floor(n % 100 / 10); lo = n - n % 100; r = d >= 5 ? lo + 100 : lo;
+        return makeQ({ text: 'Runde ' + n + ' auf Hunderter!', ans: r, cands: [d >= 5 ? lo : lo + 100, Math.round(n / 10) * 10, r + 100, r - 100],
+          exp: n + ' liegt zwischen ' + lo + ' und ' + (lo + 100) + '. Bei ' + (d === 1 ? '1 Zehner' : d + ' Zehnern') + ' rundet man ' + (d >= 5 ? 'auf' : 'ab') + '.',
+          tip: ROUND_TIP.h, full: n + ' auf Hunderter gerundet: ' + r });
+      }
+      if (kind === 'k') {                     /* nächster Hunderter */
+        do { n = ri(101, 899); } while (n % 100 === 0);
+        lo = n - n % 100; r = lo + 100;
+        return makeQ({ text: 'Nächster Hunderter nach ' + n + ' = ?', ans: r, cands: [lo, r + 100, n - n % 10 + 10, lo + 10],
+          exp: n + ' liegt zwischen ' + lo + ' und ' + r + '. Der nächste Hunderter ist ' + r + '.', tip: 'Tipp: Zähle in Hundertern: 100, 200, 300 … Welcher kommt nach ' + n + '?' });
+      }
+      do { n = ri(101, 989); } while (n % 10 === 0);      /* nächster Zehner */
+      lo = n - n % 10; r = lo + 10;
+      return makeQ({ text: 'Nächster Zehner nach ' + n + ' = ?', ans: r, cands: [lo, r + 10, n - n % 100 + 100, n + 1],
+        exp: n + ' liegt zwischen ' + lo + ' und ' + r + '. Der nächste Zehner ist ' + r + '.', tip: 'Tipp: Zähle in Zehnern. Welche Zehnerzahl kommt nach ' + n + '?' });
     },
-    folgen: function () {
-      var kind = ri(1, 6), a, d, r, last, t = [], i;
-      if (kind === 1) {                      /* immer das Doppelte: 3, 6, 12, 24, ? */
+    folgen: function (s) {
+      var kind = pick([null, ['p'], ['p', 'm'], ['p', 'p', 'm', 'x'], ['g', 'g', 'p', 'm'], ['w', 'g', 'x']][s]), a, d, r, last, t = [], i, hole;
+      var gapTip = 'Tipp: Wie groß ist der Abstand von einer Zahl zur nächsten?';
+      if (kind === 'x') {                     /* immer das Doppelte: 3, 6, 12, 24, ? */
         a = ri(1, 6);
         for (i = 0; i < 4; i++) t.push(a * Math.pow(2, i));
         last = a * 8; r = a * 16;
-        return makeQ(t.join(', ') + ', ?', r, [a * 12, r + 2, r - 2, a * 10, r + a],
-          'Immer das Doppelte: ' + last + ' + ' + last + ' = ' + r + '.');
+        return makeQ({ text: t.join(', ') + ', ?', ans: r, cands: [a * 12, r + 2, r - 2, a * 10, r + a],
+          exp: 'Immer das Doppelte: ' + last + ' + ' + last + ' = ' + r + '.', tip: 'Tipp: Hier wird nicht plus gerechnet. Vergleiche jede Zahl mit der davor.' });
       }
-      if (kind <= 4) {                       /* immer plus: 250, 300, 350, 400, ? */
-        d = [2, 3, 4, 5, 6, 7, 8, 9, 10, 20, 25, 50, 100][ri(0, 12)];
-        a = d >= 20 ? ri(1, 10) * 50 : ri(1, 60);
-      } else {                               /* immer minus: 100, 90, 80, 70, ? */
-        d = -[2, 5, 10, 20, 25, 50, 100][ri(0, 6)];
+      if (kind === 'w') {                     /* Abstand wächst: 5, 6, 8, 11, 15, ? */
+        a = ri(1, 20); d = ri(1, 3);
+        var gaps = [];
+        t.push(a);
+        for (i = 0; i < 4; i++) { gaps.push('+ ' + (d + i)); a += d + i; t.push(a); }
+        r = a + d + 4;
+        return makeQ({ text: t.join(', ') + ', ?', ans: r, cands: [r - 1, r + 1, r + 2, r - 2],
+          exp: 'Der Abstand wächst immer um 1: ' + gaps.join(', ') + '. Jetzt + ' + (d + 4) + ': ' + a + ' + ' + (d + 4) + ' = ' + r + '.',
+          tip: 'Tipp: Schreib die Abstände auf. Sie werden immer größer.' });
+      }
+      if (kind === 'm' || (kind === 'g' && ri(0, 1))) {       /* immer minus */
+        d = -pick(s === 2 ? [2, 10] : [2, 5, 10, 20, 25, 50, 100]);
         a = d <= -20 ? ri(5, 10) * 100 : ri(5, 10) * 10;
+      } else {                               /* immer plus */
+        d = pick(s === 1 ? [2, 5, 10] : s === 2 ? [3, 4, 20, 50, 100] : [2, 3, 4, 5, 6, 7, 8, 9, 10, 20, 25, 50, 100]);
+        a = d >= 20 ? ri(1, 10) * 50 : s === 1 ? (d === 2 ? ri(1, 20) : ri(1, 8) * d) : ri(1, 60);
+      }
+      var rule = 'Immer ' + (d > 0 ? '+ ' : '− ') + Math.abs(d), op = d > 0 ? ' + ' : ' − ';
+      if (kind === 'g') {                     /* Lücke in der Mitte: 12, 19, ?, 33, 40 */
+        hole = ri(1, 3);
+        for (i = 0; i < 5; i++) t.push(a + i * d);
+        r = t[hole]; last = t[hole - 1]; t[hole] = '?';
+        return makeQ({ text: t.join(', '), ans: r, exp: rule + ': ' + last + op + Math.abs(d) + ' = ' + r + '.',
+          cands: [r + 1, r - 1, r + 2, r - 2, r + 10, r - 10].filter(function (c) { return t.indexOf(c) < 0; }),
+          tip: 'Tipp: Schau auf zwei Zahlen, die nebeneinander stehen. Wie groß ist ihr Abstand?' });
       }
       for (i = 0; i < 4; i++) t.push(a + i * d);
       last = a + 3 * d; r = a + 4 * d;
-      return makeQ(t.join(', ') + ', ?', r,
-        [r + d, r + 1, r - 1, r + 10, r - 10, r + 2].filter(function (c) { return c !== last; }),
-        'Immer ' + (d > 0 ? '+ ' : '− ') + Math.abs(d) + ': ' + last + (d > 0 ? ' + ' : ' − ') + Math.abs(d) + ' = ' + r + '.');
+      return makeQ({ text: t.join(', ') + ', ?', ans: r, exp: rule + ': ' + last + op + Math.abs(d) + ' = ' + r + '.', tip: gapTip,
+        cands: [r + d, r + 1, r - 1, r + 10, r - 10, r + 2].filter(function (c) { return c !== last; }) });
     },
-    groessen: function () {
-      var u = UNITS[ri(0, UNITS.length - 1)], one = u[0], many = u[1], small = u[2], f = u[3], rests = u[5];
-      var kind = ri(1, rests ? 3 : 2), n, r;
-      var base = (f === 1 ? '' : f + ' ') + small;
+    groessen: function (s) {
+      if (s === 5 && ri(0, 2)) {
+        if (ri(0, 1)) {                      /* Kommaschreibweise: 2,50 € = ? Cent */
+          var eur = ri(0, 1) === 1, n5 = ri(1, 9), c5 = pick([5, 20, 25, 50, 75, 90]), r5 = n5 * 100 + c5;
+          var big = eur ? '€' : 'm', small5 = eur ? 'Cent' : 'cm', num = n5 + ',' + (c5 < 10 ? '0' : '') + c5 + ' ' + big;
+          return makeQ({ text: num + ' = ? ' + small5, ans: r5, max: 10000,
+            cands: [n5 * 10 + c5, n5 * 1000 + c5, n5 * 100 + c5 * 10, Number(String(n5) + c5), r5 + 10, r5 - 10],
+            exp: num + ' sind ' + n5 + ' ' + big + ' und ' + c5 + ' ' + small5 + ', also ' + r5 + ' ' + small5 + '.',
+            tip: 'Tipp: Vor dem Komma stehen die ' + (eur ? 'Euro, dahinter die Cent. 1 € = 100 Cent.' : 'Meter, dahinter die Zentimeter. 1 m = 100 cm.') });
+        }
+        var f = pick(PARTS);                 /* einfache Bruchteile: eine halbe Stunde = ? min */
+        return makeQ({ text: f[0], ans: f[1], cands: f[2], exp: f[3], tip: f[4] });
+      }
+      var pool = s === 1 ? [0, 1, 4] : s === 2 ? [0, 1, 2, 3, 4, 5] : [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+      var u = UNITS[pick(pool)], one = u[0], many = u[1], small = u[2], fac = u[3], rests = u[5];
+      var kind = s === 1 ? 1 : s >= 4 && rests ? pick([3, 3, 1, 2]) : ri(1, 2), n, r, rest;
+      var fact = 'Tipp: 1 ' + one + ' = ' + fac + ' ' + small + '.';
       if (kind === 1) {                      /* 3 m = ? cm */
-        n = ri(1, u[4]); r = n * f;
-        return makeQ(n + ' ' + (n === 1 ? one : many) + ' = ? ' + small, r, [n * 10, n * 100, n * 1000, (n + 1) * f, (n - 1) * f, r + 10],
-          '1 ' + one + ' = ' + base + (n === 1 ? '.' : ', also ' + n + ' ' + many + ' = ' + r + ' ' + small + '.'), 10000);
+        n = ri(2, Math.max(2, u[4])); r = n * fac;
+        return makeQ({ text: n + ' ' + many + ' = ? ' + small, ans: r, max: 10000, tip: fact,
+          cands: [n * 10, n * 100, n * 1000, (n + 1) * fac, (n - 1) * fac, r + 10],
+          exp: '1 ' + one + ' = ' + fac + ' ' + small + ', also ' + n + ' ' + many + ' = ' + r + ' ' + small + '.' });
       }
       if (kind === 2) {                      /* 300 cm = ? m */
         n = ri(2, Math.max(2, u[4]));
-        return makeQ((n * f) + ' ' + small + ' = ? ' + many, n, [n * 10, n + 1, n - 1, n + 2, n * 100],
-          base + ' = 1 ' + one + ', also ' + (n * f) + ' ' + small + ' = ' + n + ' ' + many + '.', 10000);
+        return makeQ({ text: (n * fac) + ' ' + small + ' = ? ' + many, ans: n, max: 10000, tip: fact, cands: [n * 10, n + 1, n - 1, n + 2, n * 100],
+          exp: fac + ' ' + small + ' = 1 ' + one + ', also ' + (n * fac) + ' ' + small + ' = ' + n + ' ' + many + '.' });
       }
-      n = ri(1, Math.min(3, u[4]));          /* 1 m 50 cm = ? cm */
-      var rest = rests[ri(0, rests.length - 1)];
-      r = n * f + rest;
-      return makeQ(n + ' ' + (n === 1 ? one : many) + ' ' + rest + ' ' + small + ' = ? ' + small, r,
-        [n * 10 + rest, n * 100 + rest, n * 1000 + rest, Number(String(n) + rest), n * f + rest * 10, r + 10, r - 10],
-        n + ' ' + (n === 1 ? one : many) + ' = ' + (n * f) + ' ' + small + ', dazu ' + rest + ' ' + small + ': ' + r + ' ' + small + '.', 10000);
+      n = ri(1, Math.min(3, u[4])); rest = pick(rests); r = n * fac + rest;      /* 1 m 50 cm = ? cm */
+      return makeQ({ text: n + ' ' + (n === 1 ? one : many) + ' ' + rest + ' ' + small + ' = ? ' + small, ans: r, max: 10000, tip: fact,
+        cands: [n * 10 + rest, n * 100 + rest, n * 1000 + rest, Number(String(n) + rest), n * fac + rest * 10, r + 10, r - 10],
+        exp: n + ' ' + (n === 1 ? one : many) + ' = ' + (n * fac) + ' ' + small + ', dazu ' + rest + ' ' + small + ': ' + r + ' ' + small + '.' });
     },
-    mix: function () { return GEN[MIX[ri(0, MIX.length - 1)]](); }
+    mix: function (s) { return GEN[pick(MIX)](s); }
   };
   var MIX = ['mal', 'geteilt', 'plus', 'minus', 'zehner', 'doppelt', 'nachbar', 'folgen', 'groessen'];
   /* Größen: [Einheit, Mehrzahl, kleinere Einheit, Faktor, größte Anzahl, Reste für „1 m 50 cm“] */
@@ -484,19 +684,23 @@ p{font-size:17px;line-height:1.4;margin:8px 0}
     ['h', 'h', 'min', 60, 4, [15, 30, 45]], ['min', 'min', 's', 60, 5, [30]],
     ['Tag', 'Tage', 'h', 24, 2, null], ['Woche', 'Wochen', 'Tage', 7, 9, null], ['Jahr', 'Jahre', 'Monate', 12, 3, null]
   ];
-  var WRONG = ['🤔 Noch nicht ganz. Versuch es noch einmal!', '🤔 Fast! Rechne in Ruhe noch einmal nach.',
-    '🤔 Das passt noch nicht. Probier eine andere Zahl!'];
+  /* Einfache Bruchteile von Größen: [Aufgabe, Lösung, typische Fehler, Rechenweg, Tipp] */
+  var PARTS = [
+    ['Eine halbe Stunde = ? min', 30, [50, 15, 20, 45], '1 h = 60 min. Die Hälfte davon sind 30 min.', 'Tipp: 1 h = 60 min. Nimm die Hälfte.'],
+    ['Eine Viertelstunde = ? min', 15, [25, 30, 20, 4], '1 h = 60 min. Ein Viertel davon sind 15 min.', 'Tipp: 1 h = 60 min. Teile durch 4.'],
+    ['Eine Dreiviertelstunde = ? min', 45, [75, 30, 34, 40], 'Eine Viertelstunde sind 15 min. 3 · 15 min = 45 min.', 'Tipp: Eine Viertelstunde sind 15 min. Nimm das 3-mal.'],
+    ['Ein halber Meter = ? cm', 50, [5, 500, 20, 12], '1 m = 100 cm. Die Hälfte davon sind 50 cm.', 'Tipp: 1 m = 100 cm. Nimm die Hälfte.'],
+    ['Ein halbes Kilogramm = ? g', 500, [50, 5, 250, 12], '1 kg = 1000 g. Die Hälfte davon sind 500 g.', 'Tipp: 1 kg = 1000 g. Nimm die Hälfte.'],
+    ['Ein halber Liter = ? ml', 500, [50, 5, 250, 12], '1 l = 1000 ml. Die Hälfte davon sind 500 ml.', 'Tipp: 1 l = 1000 ml. Nimm die Hälfte.'],
+    ['Ein halber Kilometer = ? m', 500, [50, 5, 250, 12], '1 km = 1000 m. Die Hälfte davon sind 500 m.', 'Tipp: 1 km = 1000 m. Nimm die Hälfte.'],
+    ['Ein halbes Jahr = ? Monate', 6, [5, 3, 50, 2], 'Ein Jahr hat 12 Monate. Die Hälfte davon sind 6 Monate.', 'Tipp: Ein Jahr hat 12 Monate. Nimm die Hälfte.'],
+    ['Ein Vierteljahr = ? Monate', 3, [4, 6, 25, 2], 'Ein Jahr hat 12 Monate. Ein Viertel davon sind 3 Monate.', 'Tipp: Ein Jahr hat 12 Monate. Teile durch 4.']
+  ];
 
   /* ---------- Level ---------- */
-  function buildLevel(topic) {
+  function buildLevel() {
     var L = { solids: [], gears: [], enemies: [], stations: [], flags: [], pits: [], movers: [], boss: null, goal: null, length: 0 };
-    var x = 0, lv = 0, used = {};   /* lv = Höhe des Bodens in Feldern über dem normalen Boden */
-    function question() {
-      var q, n = 0;
-      do { q = GEN[topic](); } while (used[q.text] && ++n < 50);
-      used[q.text] = true;
-      return q;
-    }
+    var x = 0, lv = 0;   /* lv = Höhe des Bodens in Feldern über dem normalen Boden */
     function ground(n, belt) {
       var r = { kind: 'ground', x: x * T, y: GY - lv * T, w: n * T, h: 900 + lv * T, belt: belt || 0 };
       L.solids.push(r); x += n; return r;
@@ -528,14 +732,14 @@ p{font-size:17px;line-height:1.4;margin:8px 0}
     }
     function blocks(owner, tiles) {
       tiles.forEach(function (tx, i) {
-        var b = { kind: 'block', x: tx * T, y: GY - 4 * T, w: 2 * T, h: T, owner: owner, value: owner.q.opts[i], state: 'open', bump: 0, shake: 0 };
+        var b = { kind: 'block', x: tx * T, y: GY - 4 * T, w: 2 * T, h: T, owner: owner, value: null, state: 'open', bump: 0, shake: 0 };
         owner.blocks.push(b); L.solids.push(b);
       });
     }
     function station() {
       var s = x;
       ground(12);
-      var st = { idx: L.stations.length, x0: s * T, cx: (s + 5.5) * T, blocks: [], q: question(), tries: 0, msg: '', solved: false, open: 0 };
+      var st = { idx: L.stations.length, x0: s * T, cx: (s + 5.5) * T, blocks: [], q: null, tries: 0, msg: '', solved: false, open: 0 };
       blocks(st, [s + 1, s + 4, s + 7]);
       st.gate = { kind: 'gate', x: (s + 10) * T + 8, y: -3000, w: 24, h: 3000 + GY, off: false };
       L.solids.push(st.gate);
@@ -631,8 +835,8 @@ p{font-size:17px;line-height:1.4;margin:8px 0}
     /* Endgegner: großer Schrott-Roboter, danach der Hauptschalter als Ziel. */
     var s = x;
     ground(24);
-    var B = { isBoss: true, x0: s * T, cx: (s + 7.5) * T, bx: (s + 10.5) * T, blocks: [], q: question(), tries: 0, msg: '',
-      hp: BOSS_HP, locked: false, wait: 0, dead: false, flash: 0, next: question };
+    var B = { isBoss: true, x0: s * T, cx: (s + 7.5) * T, bx: (s + 10.5) * T, blocks: [], q: null, tries: 0, msg: '',
+      hp: BOSS_HP, locked: false, wait: 0, dead: false, flash: 0 };
     blocks(B, [s + 2, s + 4.5, s + 7]);
     B.wall = { kind: 'wall', x: (s + 10) * T, y: -3000, w: 16, h: 3000 + GY, off: false };
     L.solids.push(B.wall);
@@ -688,13 +892,61 @@ p{font-size:17px;line-height:1.4;margin:8px 0}
   try { touch = window.matchMedia('(pointer: coarse)').matches || 'ontouchstart' in window; } catch (e) {}
 
   function newGame(topic, mode) {
-    return {
-      mode: mode, topic: topic, L: buildLevel(topic), theme: pickTheme(), time: 0, cam: 0, fade: 0,
+    var saved = store.lvl[topic];
+    var g = {
+      mode: mode, topic: topic, L: buildLevel(), theme: pickTheme(), time: 0, cam: 0, fade: 0,
       p: { x: 3 * T, y: GY - 40, w: 26, h: 40, vx: 0, vy: 0, face: 1, onGround: true, floor: null, coy: 0, buf: 0, inv: 0, dead: 0 },
       check: { x: 3 * T, y: GY - 40 }, cur: null,
       solved: 0, first: 0, gears: 0, parts: [], zap: null, winT: 0,
-      streak: 0, nextPower: 0, power: { shield: false, magnet: false, double: false }
+      streak: 0, nextPower: 0, power: { shield: false, magnet: false, double: false },
+      /* skill = Schwierigkeit 1 bis 5, steigt mit richtigen Antworten. Start: eine Stufe unter der zuletzt erreichten. */
+      skill: saved ? Math.max(1, saved - 1) : 1, used: {},
+      missed: [],                                             /* Aufgaben, die in diesem Spiel nicht gleich klappten */
+      again: (store.again[topic] || []).slice(0, 2)           /* höchstens 2 Aufgaben vom letzten Mal */
     };
+    setQ(g.L.stations[0], nextQ(g, g.L.stations[0]));
+    return g;
+  }
+  function stufe(g) { return Math.max(1, Math.min(5, Math.floor(g.skill))); }
+  /* Neue Aufgabe in der aktuellen Stufe, möglichst keine doppelt im selben Spiel. */
+  function nextQ(g, o) {
+    var q, n = 0, i;
+    if (o.isBoss) {                          /* der Endgegner fragt zuerst, was vorhin schwerfiel */
+      for (i = 0; i < g.missed.length; i++) {
+        if (!g.missed[i].asked) { g.missed[i].asked = true; return replay(g.missed[i], 'replay'); }
+      }
+    } else if ((o.idx === 1 || o.idx === 3) && g.again.length) {      /* Aufgaben vom letzten Spiel */
+      q = replay(g.again.shift(), 'again');
+      g.used[q.text] = true;
+      return q;
+    }
+    do { q = GEN[g.topic](stufe(g)); } while (g.used[q.text] && ++n < 50);
+    g.used[q.text] = true;
+    return q;
+  }
+  /* Dieselbe Aufgabe noch einmal stellen: Antworten neu gemischt, mit Merker „again“ oder „replay“. */
+  function replay(q, flag) {
+    var c = plainQ(q);
+    shuffle(c.opts); c[flag] = true;
+    return c;
+  }
+  /* Merkliste pro Thema für das nächste Spiel (höchstens 6, die ältesten fallen heraus). */
+  function remember(q) {
+    var list = store.again[G.topic] || (store.again[G.topic] = []);
+    if (list.some(function (v) { return v.text === q.text; })) return;
+    list.push(plainQ(q));
+    while (list.length > 6) list.shift();
+    persist();
+  }
+  function forget(q) {
+    var list = store.again[G.topic] || [];
+    store.again[G.topic] = list.filter(function (v) { return v.text !== q.text; });
+    persist();
+  }
+  /* Aufgabe an eine Station oder den Endgegner hängen und die drei Blöcke beschriften. */
+  function setQ(o, q) {
+    o.q = q; o.tries = 0;
+    o.blocks.forEach(function (b, i) { b.value = q.opts[i]; b.state = 'open'; });
   }
 
   /* ---------- Bildschirm ---------- */
@@ -768,13 +1020,21 @@ p{font-size:17px;line-height:1.4;margin:8px 0}
     if (b.state !== 'open' || o.locked) { sfx.thud(); return; }
     if (b.value !== o.q.ans) {
       b.state = 'wrong'; b.shake = 0.4;
-      o.msg = WRONG[o.tries % WRONG.length]; o.tries++;
+      if (o.tries === 0) {
+        G.skill = Math.max(1, G.skill - 1);                 /* nach einem Fehler wird es leichter */
+        if (!o.q.replay) { G.missed.push(o.q); remember(o.q); }
+      }
+      o.msg = (o.tries === 0 ? '🤔 Noch nicht ganz. ' : '🤔 Fast! ') + o.q.tip;       /* gezielter Tipp statt Lösung */
+      o.tries++;
       G.streak = 0;
       sfx.wrong();
       return;
     }
     b.state = 'right';
-    if (o.tries === 0) { G.first++; G.streak++; }
+    if (o.tries === 0) {
+      G.first++; G.streak++; G.skill = Math.min(5, G.skill + 0.5);     /* alle zwei Treffer eine Stufe schwerer */
+      if (o.q.again) forget(o.q);                           /* Aufgabe vom letzten Mal gleich gelöst: abgehakt */
+    }
     sfx.right();
     burst(b.x + b.w / 2, b.y, 14, ['#ffd54a', '#5ad17a', '#ffffff']);
     o.blocks.forEach(function (c) { if (c !== b && c.state === 'open') c.state = 'locked'; });
@@ -794,6 +1054,8 @@ p{font-size:17px;line-height:1.4;margin:8px 0}
       o.solved = true; G.solved++;
       o.msg = '✅ Richtig! ' + o.q.exp;
       G.power.magnet = false; G.power.double = false;     /* halten bis zur nächsten gelösten Station */
+      var nx = G.L.stations[o.idx + 1] || G.L.boss;
+      setQ(nx, nextQ(G, nx));   /* die nächste Aufgabe richtet sich nach der neuen Stufe */
     }
     if (G.streak >= 3 && !o.dead) { G.streak = 0; o.msg += ' ' + grantPower(); }
   }
@@ -928,8 +1190,7 @@ p{font-size:17px;line-height:1.4;margin:8px 0}
     if (B.wait > 0 && !B.dead) {
       B.wait -= dt;
       if (B.wait <= 0) {
-        B.q = B.next(); B.tries = 0; B.msg = ''; B.locked = false;
-        B.blocks.forEach(function (b, n) { b.value = B.q.opts[n]; b.state = 'open'; });
+        setQ(B, nextQ(G, B)); B.msg = ''; B.locked = false;
       }
     }
 
@@ -1111,7 +1372,7 @@ p{font-size:17px;line-height:1.4;margin:8px 0}
     ctx.fillRect(x + 7, y + b.h - 11, 4, 4); ctx.fillRect(x + b.w - 11, y + b.h - 11, 4, 4);
     ctx.fillStyle = c[2];
     ctx.font = 'bold ' + (String(b.value).length > 4 ? 20 : 24) + 'px ' + FONT; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    ctx.fillText(String(b.value), x + b.w / 2, y + b.h / 2 + 2);
+    if (b.value !== null) ctx.fillText(String(b.value), x + b.w / 2, y + b.h / 2 + 2);
     if (b.state === 'wrong') {
       ctx.strokeStyle = '#d64545'; ctx.lineWidth = 4;
       ctx.beginPath(); ctx.moveTo(x + 14, y + b.h - 10); ctx.lineTo(x + b.w - 14, y + 10); ctx.stroke();
@@ -1363,13 +1624,15 @@ p{font-size:17px;line-height:1.4;margin:8px 0}
     else progress = 'Aufgabe ' + (G.solved + 1) + ' / ' + STATIONS;
     setText('progress', progress);
     setText('gears', '⚙️ ' + G.gears);
-    setText('streak', 'Serie ' + '★★★'.slice(0, G.streak) + '☆☆☆'.slice(G.streak) +
+    setText('streak', 'Stufe ' + stufe(G) + ' · Serie ' + '★★★'.slice(0, G.streak) + '☆☆☆'.slice(G.streak) +
       POWERS.map(function (pw) { return G.power[pw.id] ? ' ' + pw.icon : ''; }).join(''));
-    var on = !!cur && !G.L.goal.hit;
+    var on = !!cur && !!cur.q && !G.L.goal.hit;
     if ($('banner').hidden === on) $('banner').hidden = !on;
     if (!on) return;
     var msg = cur.msg;
     if (!msg && cur.idx === 0) msg = 'Spring von unten gegen die richtige Zahl!';
+    if (!msg && cur.q.again) msg = '🔁 Diese Aufgabe kennst du vom letzten Mal. Jetzt klappt sie bestimmt!';
+    if (!msg && cur.q.replay) msg = '🔁 Noch einmal: Diese Aufgabe war vorhin knifflig.';
     if (!msg && cur.isBoss && cur.hp === BOSS_HP) msg = 'Der Schrott-Roboter! Triff 3-mal die richtige Zahl.';
     setText('question', cur.q.text);
     setText('feedback', msg);
@@ -1380,6 +1643,7 @@ p{font-size:17px;line-height:1.4;margin:8px 0}
     $('win').hidden = name !== 'win';
     $('shop').hidden = name !== 'shop';
     $('hud').hidden = name !== 'play';
+    $('streak').hidden = name !== 'play';
     $('pad').hidden = !(name === 'play' && touch);
     if (name !== 'play') $('banner').hidden = true;
   }
@@ -1406,6 +1670,7 @@ p{font-size:17px;line-height:1.4;margin:8px 0}
     G.mode = 'win';
     store.best[G.topic] = Math.max(store.best[G.topic] || 0, stars);
     store.bank += G.gears;
+    store.lvl[G.topic] = stufe(G);
     persist();
     $('stars').innerHTML = '';
     for (var i = 0; i < 3; i++) {
@@ -1414,7 +1679,17 @@ p{font-size:17px;line-height:1.4;margin:8px 0}
       $('stars').appendChild(s);
     }
     $('winText').textContent = 'Super gemacht! ' + G.first + ' von ' + total + ' Aufgaben hast du gleich beim ersten Versuch gelöst. ' +
-      'Dabei hast du ' + G.gears + ' Zahnräder gesammelt. In der Werkstatt hast du jetzt ' + store.bank + '.';
+      'Du hast Stufe ' + stufe(G) + ' von 5 erreicht und ' + G.gears + ' Zahnräder gesammelt. In der Werkstatt hast du jetzt ' + store.bank + '.';
+    /* Rückblick: was nicht gleich klappte, mit Lösung */
+    var review = $('review'), head = document.createElement('b');
+    review.innerHTML = '';
+    head.textContent = G.missed.length ? 'Diese Aufgaben waren knifflig:' : '🌟 Alle Aufgaben beim ersten Versuch gelöst – stark!';
+    review.appendChild(head);
+    G.missed.slice(0, 5).forEach(function (q) {
+      var item = document.createElement('span');
+      item.textContent = q.full;
+      review.appendChild(item);
+    });
     screen('win');
     $('againBtn').focus();
   }
@@ -1521,16 +1796,28 @@ p{font-size:17px;line-height:1.4;margin:8px 0}
   });
   $('againBtn').addEventListener('click', function () { startGame(G.topic); });
   $('topicBtn').addEventListener('click', showStart);
-  function muteLabel() { $('mute').textContent = store.mute ? '🔇' : '🔊'; }
-  $('mute').addEventListener('click', function () { store.mute = !store.mute; persist(); muteLabel(); audioOn(); musicVolume(); this.blur(); });
+  /* Ton-Knopf mit drei Zuständen: alles an → nur Geräusche (Musik aus) → alles aus. */
+  function muteLabel() {
+    $('mute').textContent = store.mute ? '🔇' : store.music ? '🔊' : '🔉';
+    $('mute').setAttribute('aria-label', store.mute ? 'Ton aus. Tippen für Ton an.' : store.music ? 'Ton und Musik an. Tippen für Musik aus.' : 'Musik aus. Tippen für Ton aus.');
+  }
+  $('mute').addEventListener('click', function () {
+    if (store.mute) { store.mute = false; store.music = true; }
+    else if (store.music) store.music = false;
+    else store.mute = true;
+    persist(); muteLabel(); audioOn(); musicVolume(); this.blur();
+  });
   muteLabel();
 
   /* ---------- Schleife ---------- */
   var last = 0, acc = 0;
   function frame(now) {
     var dt = Math.min(0.05, (now - last) / 1000 || 0);
-    last = now; acc += dt;
-    while (acc >= STEP) { update(STEP); acc -= STEP; }
+    last = now; acc += dt * (TEST && window.ROBI.speed || 1);     /* Zeitraffer nur für Tests */
+    while (acc >= STEP) {
+      if (TEST && window.ROBI.step) window.ROBI.step();           /* hier steuert der Test-Bot */
+      update(STEP); acc -= STEP;
+    }
     draw();
     if (!$('shop').hidden) drawPreview();
     if (G.mode === 'play') hud();
@@ -1539,7 +1826,7 @@ p{font-size:17px;line-height:1.4;margin:8px 0}
 
   resize();
   showStart();
-  if (TEST) window.ROBI = { game: function () { return G; }, input: input, view: view, gen: GEN, bump: bump, hurt: hurt, music: music };
+  if (TEST) window.ROBI = { game: function () { return G; }, input: input, view: view, gen: GEN, bump: bump, hurt: hurt, music: music, speed: 1, step: null };
   requestAnimationFrame(frame);
 })();
 </script>

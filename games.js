@@ -56,5 +56,12 @@ window.GAMES = [
     description: "Hüpfe mit Roboter Robi durch die Fabrik und löse Aufgaben zum Rechnen, zu Zahlen und zu Größen.",
     age: "3. Klasse",
     subject: "Mathe"
+  },
+  {
+    id: "Sachunterricht-Getreideernte",
+    title: "Bauer Franz und die Getreideernte",
+    description: "Mähe mit Bauer Franz und seiner Sense das Feld und löse an 10 Stationen Aufgaben rund ums Getreide.",
+    age: "3. Klasse",
+    subject: "Sachunterricht"
   }
 ];

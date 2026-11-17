@@ -25,7 +25,7 @@ window.GAMES = [
   {
     id: "elisabeth",
     title: "Elisabeth von Thüringen",
-    description: "Begleite Elisabeth durch ihr Leben und beantworte an 12 Stationen Fragen für den Religionsunterricht.",
+    description: "Begleite Elisabeth durch ihr Leben und beantworte an 20 Stationen Fragen für den Religionsunterricht.",
     age: "3. Klasse",
     subject: "Religion"
   },

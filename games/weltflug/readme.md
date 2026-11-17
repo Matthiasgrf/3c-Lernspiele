@@ -9,6 +9,12 @@ gelben Kugel (Hauptstadt) landen. Nach der Landung gibt es die gleichen Fragen w
 3. Welche Sehenswürdigkeit gibt es dort?
 4. Wie viele Menschen leben ungefähr im Land?
 
+**Berühmte Bauwerke:** Unterwegs stehen 10 berühmte Bauwerke als 3D-Modell an ihrem echten Ort:
+Pyramiden von Gizeh, Chinesische Mauer, Kolosseum, Hagia Sophia, Angkor Wat, Taj Mahal, Eiffelturm,
+Sagrada Família, Empire State Building und Burj Khalifa. Neben jedem Bauwerk liegt ein goldener Ring mit
+schwebendem Edelstein – dort kann man landen und bekommt den Ort, die Bauzeit und zwei kurze Infos.
+Der erste Besuch gibt 5 Punkte, die Anzeige oben zeigt 🏛️ 3/10. Besuchte Bauwerke haben einen grünen Ring.
+
 Wer alle Länder besucht hat, wird „Welt-Meister“. Der Spielstand wird im Browser gespeichert (`weltflug_v1`).
 
 Steuerung: Pfeiltasten oder A/D zum Lenken, W schneller, S langsamer, Leertaste landen.
@@ -42,3 +48,15 @@ Technik und Quellen:
   Die Karte wird als Flächen (Dreiecke) gezeichnet und dreimal nebeneinander gelegt.
 - Flaggen: `flag-icons@7.6.0` (MIT-Lizenz), lokal in `assets/vendor/flag-icons-7.6.0/` – nur die 193 benötigten.
 - Three.js wird aus `assets/vendor/` geladen, das Spiel braucht keine fremden Server.
+
+Zu den Bauwerken:
+- Die Höhen sind nicht maßstabsgetreu, aber die Reihenfolge stimmt: Der Burj Khalifa ist am höchsten, dann
+  Empire State Building, Eiffelturm, Sagrada Família. Flache Bauwerke sind etwas vergrößert, damit man sie gut sieht.
+  Über hohen Bauwerken steigt das Flugzeug von selbst nach oben.
+- Eiffelturm, Kolosseum und die Pyramiden stehen fast genau auf der Stecknadel ihrer Hauptstadt. Damit man
+  beides unterscheiden kann, sind sie in ihre echte Richtung etwas zur Seite gerückt (Gizeh liegt westlich von Kairo).
+- Die Chinesische Mauer folgt grob dem Verlauf der Mauer aus der Ming-Zeit von Shanhaiguan am Meer bis Jiayuguan.
+  Gelandet wird an einem Wachturm nördlich von Peking.
+- Kleine Details: Beim Kolosseum fehlt wie in echt ein Teil der Außenmauer, an der Sagrada Família steht ein Baukran
+  (sie ist noch nicht fertig), Angkor Wat hat Wassergraben und Urwald, der Taj Mahal Garten und Wasserbecken.
+- Durchspiel-Test: `node tools/spieltest.js weltflug` (das Spiel bietet dafür mit `?test` den Zugang `window.WELTFLUG`).

@@ -51,6 +51,8 @@ html,body{margin:0;height:100%;overflow:hidden;font-family:"Trebuchet MS","Segoe
 .flagopt img{height:72px;width:96px;border:1px solid #bbb;border-radius:4px;pointer-events:none}
 .fb{min-height:28px;font-size:18px;font-weight:800;margin-top:4px}
 .stars{font-size:44px;letter-spacing:4px}
+#ov .bwcard p.bwwhere{font-size:15px;opacity:.8}
+#ov .bwcard p.bwinfo{font-size:18px;text-align:left;background:#fff6e0;border-radius:14px;padding:10px 14px}
 #loading{position:fixed;inset:0;z-index:30;display:flex;align-items:center;justify-content:center;font-size:24px;font-weight:800;background:linear-gradient(#69b9ee,#d6ecfb);text-align:center;padding:20px}
 </style>
 </head>
@@ -63,7 +65,7 @@ html,body{margin:0;height:100%;overflow:hidden;font-family:"Trebuchet MS","Segoe
     <svg id="arrow" viewBox="0 0 40 40"><polygon points="20,2 35,35 20,27 5,35" fill="#ff9f1c" stroke="#7a4a00" stroke-width="2.5" stroke-linejoin="round"/></svg>
     <div><div class="lbl">Flieg nach</div><div class="tgt" id="tgtName">–</div><div class="dst" id="tgtDist"></div></div>
   </div>
-  <div id="score" class="hidden">⭐ <span id="sc">0</span> &nbsp;·&nbsp; 🗺️ <span id="cnt">0</span>/<span id="tot">0</span></div>
+  <div id="score" class="hidden">⭐ <span id="sc">0</span> &nbsp;·&nbsp; 🗺️ <span id="cnt">0</span>/<span id="tot">0</span> &nbsp;·&nbsp; 🏛️ <span id="bwc">0</span>/<span id="bwt">10</span></div>
   <button id="bN" class="hidden">🎲 Anderes Ziel</button>
   <a id="bH" class="hidden" href="../../">🏠 Alle Spiele</a>
 </div>
@@ -337,8 +339,8 @@ Object.keys(GEO.g).forEach(function(code){
 /* ---------- Spielzustand ---------- */
 var state='loading',score=0,visited={},target=null,curPin=null,lockId=null,muted=false;
 var SAVE='weltflug_v1';
-function load(){try{var s=JSON.parse(localStorage.getItem(SAVE)||'null');if(s){visited=s.visited||{};score=s.score||0;Object.keys(visited).forEach(function(k){if(!BYID[k])delete visited[k];});}}catch(e){}}
-function save(){try{localStorage.setItem(SAVE,JSON.stringify({visited:visited,score:score}));}catch(e){}}
+function load(){try{var s=JSON.parse(localStorage.getItem(SAVE)||'null');if(s){visited=s.visited||{};score=s.score||0;Object.keys(visited).forEach(function(k){if(!BYID[k])delete visited[k];});bwSeen={};Object.keys(s.bw||{}).forEach(function(k){if(BWBY[k])bwSeen[k]=1;});}}catch(e){}}
+function save(){try{localStorage.setItem(SAVE,JSON.stringify({visited:visited,score:score,bw:bwSeen}));}catch(e){}}
 function visitedCount(){return Object.keys(visited).length;}
 function shuffle(a){a=a.slice();for(var i=a.length-1;i>0;i--){var j=Math.floor(Math.random()*(i+1));var t=a[i];a[i]=a[j];a[j]=t;}return a;}
 
@@ -542,14 +544,14 @@ function buildMap(){
 }
 
 /* ---------- Welt: Beschriftungen, Pins, Wolken ---------- */
-function makeLabel(text,size){
+function makeLabel(text,size,color){
   var cv=document.createElement('canvas'),ctx=cv.getContext('2d');
   var fs=48;ctx.font='bold '+fs+'px "Trebuchet MS","Segoe UI",sans-serif';
   var w=Math.ceil(ctx.measureText(text).width)+30,h=fs+22;
   cv.width=w;cv.height=h;
   ctx.font='bold '+fs+'px "Trebuchet MS","Segoe UI",sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';
   ctx.lineJoin='round';ctx.lineWidth=11;ctx.strokeStyle='rgba(255,255,255,.95)';ctx.strokeText(text,w/2,h/2+2);
-  ctx.fillStyle='#16324f';ctx.fillText(text,w/2,h/2+2);
+  ctx.fillStyle=color||'#16324f';ctx.fillText(text,w/2,h/2+2);
   var tex=new THREE.CanvasTexture(cv);tex.minFilter=THREE.LinearFilter;tex.generateMipmaps=false;
   var sp=new THREE.Sprite(new THREE.SpriteMaterial({map:tex,transparent:true,depthWrite:false,fog:false}));
   var hh=1.15*size;sp.scale.set(hh*w/h,hh,1);
@@ -592,6 +594,399 @@ function buildWorld(){
 }
 var CW=150; /* Wolken begleiten das Flugzeug in einem Feld dieser Größe */
 
+/* ---------- Berühmte Bauwerke ----------
+   10 Bauwerke als 3D-Modelle an ihrem echten Ort (lon/lat). Eiffelturm, Kolosseum und die Pyramiden liegen
+   fast genau auf der Stecknadel ihrer Hauptstadt – sie sind darum in ihre echte Richtung etwas zur Seite
+   gerückt, damit man Stecknadel und Bauwerk unterscheiden kann.
+   pad = Landeplatz neben dem Bauwerk (Karteneinheiten), h = Höhe im Spiel, cd = Abstand der Kamera beim Landen,
+   sc = Vergrößerung des Modells (flache Bauwerke etwas größer, damit man sie aus der Ferne gut sieht). */
+var BW=[
+ {id:'bw_gizeh',name:'Pyramiden von Gizeh',at:'Bei den Pyramiden',land:'Ägypten',ort:'Gizeh bei Kairo',zeit:'ca. 2560–2540 v. Chr.',emo:'🐫',
+  lon:29.78,lat:29.73,sc:1.15,pad:[0.7,2.7],h:1.7,cd:7,
+  info:['Sie sind das einzige der sieben Weltwunder der Antike, das es heute noch gibt.','Die größte Pyramide besteht aus über 2 Millionen Steinblöcken – genau zugehauen, ohne Maschinen!']},
+ {id:'bw_mauer',name:'Chinesische Mauer',at:'An der Chinesischen Mauer',land:'China',ort:'Nördlich von Peking',zeit:'ab dem 7. Jahrhundert v. Chr.',emo:'🧱',
+  lon:114.5,lat:40.7,pad:[0,1.4],h:0.7,cd:5,
+  info:['Sie ist das längste Bauwerk, das Menschen je gebaut haben: über 21.000 Kilometer lang.','Das ist mehr als der halbe Weg rund um die ganze Erde!']},
+ {id:'bw_kolosseum',name:'Kolosseum',at:'Am Kolosseum',land:'Italien',ort:'Rom',zeit:'72–80 n. Chr.',emo:'🏟️',
+  lon:13.73,lat:41.65,sc:1.4,pad:[2.0,0.3],h:1.05,cd:4.6,
+  info:['Es ist das größte Amphitheater, das in der Antike gebaut wurde.','Etwa 50.000 Menschen schauten hier den Kämpfen der Gladiatoren zu.']},
+ {id:'bw_hagia',name:'Hagia Sophia',at:'An der Hagia Sophia',land:'Türkei',ort:'Istanbul',zeit:'537 n. Chr.',emo:'🕌',
+  lon:28.98,lat:41.01,sc:1.4,pad:[-1.3,-1.3],h:1.75,cd:4.8,
+  info:['Ihre riesige Kuppel sieht aus, als würde sie frei über dem Raum schweben.','Sie ist fast 1500 Jahre alt. Erst war sie eine Kirche, später eine Moschee.']},
+ {id:'bw_angkor',name:'Angkor Wat',at:'In Angkor Wat',land:'Kambodscha',ort:'Bei Siem Reap',zeit:'12. Jahrhundert',emo:'🛕',
+  lon:103.87,lat:13.41,sc:1.3,pad:[-2.2,0],h:1.9,cd:5.2,
+  info:['Angkor Wat ist die größte Tempelanlage der Welt.','Der Tempel ist so berühmt, dass er sogar auf der Flagge von Kambodscha zu sehen ist.']},
+ {id:'bw_taj',name:'Taj Mahal',at:'Am Taj Mahal',land:'Indien',ort:'Agra',zeit:'1632–1648',emo:'🤍',
+  lon:78.04,lat:27.17,sc:1.35,pad:[0.7,2.6],h:2.1,cd:5.2,
+  info:['Ein Herrscher ließ dieses Grabmal für seine verstorbene Frau bauen. Darum ist es ein Zeichen für die Liebe.','Es ist aus weißem Marmor gebaut und glänzt in der Sonne.']},
+ {id:'bw_eiffel',name:'Eiffelturm',at:'Am Eiffelturm',land:'Frankreich',ort:'Paris',zeit:'1889',emo:'🗼',
+  lon:1.04,lat:48.67,pad:[0,1.7],h:3.3,cd:6,
+  info:['Er wurde für die Weltausstellung 1889 ganz aus Eisen gebaut.','Er ist etwa 330 Meter hoch und das Wahrzeichen von Paris.']},
+ {id:'bw_sagrada',name:'Sagrada Família',at:'An der Sagrada Família',land:'Spanien',ort:'Barcelona',zeit:'Baubeginn 1882 – noch nicht ganz fertig',emo:'⛪',
+  lon:2.17,lat:41.4,pad:[0.7,-1.6],h:3.0,cd:6,
+  info:['Der Künstler Antoni Gaudí hat diese Kirche entworfen – mit Formen wie aus der Natur.','Man baut seit 1882 an ihr. Sie ist immer noch nicht ganz fertig, darum stehen dort Kräne.']},
+ {id:'bw_empire',name:'Empire State Building',at:'Am Empire State Building',land:'USA',ort:'New York',zeit:'1930–1931',emo:'🏙️',
+  lon:-73.99,lat:40.75,pad:[-1.2,-1.0],h:3.7,cd:6.5,
+  info:['Rund 40 Jahre lang war es das höchste Gebäude der Welt.','Es wurde in nur etwa 13 Monaten gebaut. Sein Baustil heißt Art déco.']},
+ {id:'bw_burj',name:'Burj Khalifa',at:'Am Burj Khalifa',land:'Vereinigte Arabische Emirate',ort:'Dubai',zeit:'2004–2010',emo:'🏗️',
+  lon:55.27,lat:25.2,pad:[1.5,0.2],h:5.3,cd:9,
+  info:['Mit etwa 830 Metern ist er das höchste Gebäude der Welt.','Er hat über 160 Stockwerke.']}
+];
+var BWBY={},bwSeen={};
+BW.forEach(function(b){BWBY[b.id]=b;});
+
+/* Bausteine */
+var MATC={};
+function M(c,o){var k=c+JSON.stringify(o||{});if(!MATC[k]){var p={color:c};for(var q in o)p[q]=o[q];MATC[k]=new THREE.MeshLambertMaterial(p);}return MATC[k];}
+function add(g,geo,mat,x,y,z,ry){var m=new THREE.Mesh(geo,mat);m.position.set(x,y,z);if(ry)m.rotation.y=ry;g.add(m);return m;}
+function box(g,w,h,d,x,y,z,mat,ry){return add(g,new THREE.BoxGeometry(w,h,d),mat,x,y+h/2,z,ry);}         /* y = Unterkante */
+function cyl(g,rt,rb,h,seg,x,y,z,mat){return add(g,new THREE.CylinderGeometry(rt,rb,h,seg),mat,x,y+h/2,z);}
+function lathe(g,pts,seg,x,y,z,mat){return add(g,new THREE.LatheGeometry(pts.map(function(p){return new THREE.Vector2(p[0],p[1]);}),seg),mat,x,y,z);}
+var BASIC={};
+/* Bodenflächen ohne Licht, damit sie die gleiche Farbe wie die Landkarte haben */
+function flat(g,geo,mat,x,y,z,sx,sz){var c=mat.color.getHex();mat=BASIC[c]||(BASIC[c]=new THREE.MeshBasicMaterial({color:c}));var m=add(g,geo,mat,x,y,z);m.rotation.x=-Math.PI/2;m.scale.set(sx||1,sz||1,1);return m;}
+function rect(g,w,d,x,y,z,mat){return flat(g,new THREE.PlaneGeometry(w,d),mat,x,y,z);}
+function disc(g,r,x,y,z,mat,sx,sz){return flat(g,new THREE.CircleGeometry(r,32),mat,x,y,z,sx,sz);}
+var bwSeed=11;
+function brnd(){bwSeed=(bwSeed*16807)%2147483647;return bwSeed/2147483647;}
+function canvasTex(w,h,draw){var cv=document.createElement('canvas');cv.width=w;cv.height=h;draw(cv.getContext('2d'),w,h);var t=new THREE.CanvasTexture(cv);t.wrapS=t.wrapT=THREE.RepeatWrapping;return t;}
+function rep(tex,x,y){var t=tex.clone();t.needsUpdate=true;t.repeat.set(x,y);return t;}
+/* Fensterreihen für Hochhäuser */
+var winTex=null;
+function windows(){
+  return winTex||(winTex=canvasTex(32,32,function(c,w,h){c.fillStyle='#fff';c.fillRect(0,0,w,h);c.fillStyle='#8a96a6';c.fillRect(8,4,16,20);c.fillStyle='#d8d8d8';c.fillRect(0,28,w,4);}));
+}
+function city(g,n,rmin,rmax,hmin,hmax,col,avoid){
+  for(var i=0;i<n;i++){
+    var a=brnd()*6.283,r=rmin+brnd()*(rmax-rmin),x=Math.cos(a)*r,z=Math.sin(a)*r;
+    if(avoid&&Math.hypot(x-avoid[0],z-avoid[1])<1.0)continue;
+    var w=0.18+brnd()*0.22,d=0.18+brnd()*0.22,h=hmin+brnd()*(hmax-hmin);
+    var m=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),new THREE.MeshLambertMaterial({color:col,map:rep(windows(),Math.max(1,Math.round(w*14)),Math.max(1,Math.round(h*12)))}));
+    m.position.set(x,h/2,z);g.add(m);
+  }
+}
+
+/* 1 Pyramiden: Cheops, Chephren (mit Resten der weißen Verkleidung an der Spitze), Mykerinos, Sphinx */
+function mkGizeh(g){
+  disc(g,4.2,0.2,0.012,-0.3,M(0xe7d29c),1.05,1.1);
+  var stone=M(0xd6b574);
+  function pyr(s,h,x,z){var r=s/Math.SQRT2;add(g,new THREE.ConeGeometry(r,h,4),stone,x,h/2,z,Math.PI/4);}
+  pyr(2.3,1.7,1.25,-2.35);
+  pyr(2.1,1.62,0,0);
+  add(g,new THREE.ConeGeometry(2.1/Math.SQRT2*0.2,1.62*0.2,4),M(0xf1e8d2),0,1.62*0.9+0.004,0,Math.PI/4);
+  pyr(1.05,0.75,-1.05,1.85);
+  for(var i=0;i<3;i++)pyr(0.36,0.25,2.75,-3.0+i*0.55);
+  for(i=0;i<3;i++)pyr(0.3,0.2,-1.0+i*0.48,3.0);
+  var sph=M(0xc9a466);
+  box(g,0.55,0.14,0.16,2.0,0,0.7,sph);
+  box(g,0.16,0.2,0.15,2.32,0,0.7,sph);
+  box(g,0.2,0.04,0.17,2.32,0.2,0.7,M(0xb08d55));
+}
+
+/* 2 Chinesische Mauer: Verlauf der Mauer aus der Ming-Zeit von Shanhaiguan am Meer bis Jiayuguan */
+var WALL=[[119.8,40.0],[118.5,40.3],[117.2,40.7],[116.0,40.4],[115.0,40.6],[114.0,40.8],[113.0,40.4],[112.0,40.3],[111.2,39.6],[110.2,38.6],[108.5,37.6],[107.0,37.5],[106.0,37.6],[105.0,37.9],[103.5,38.5],[102.5,38.0],[101.0,38.6],[100.0,39.0],[98.3,39.8]];
+function mkMauer(g,b){
+  var pts=[];
+  WALL.forEach(function(p){pts.push([wx(p[0])-wx(b.lon),wz(p[1])-wz(b.lat)]);});
+  /* Mauer schlängelt sich über die Hügel */
+  var seg=[];
+  for(var i=0;i<pts.length-1;i++){
+    var a=pts[i],c=pts[i+1],len=Math.hypot(c[0]-a[0],c[1]-a[1]),n=Math.max(1,Math.round(len/0.55));
+    var nx=-(c[1]-a[1])/len,nz=(c[0]-a[0])/len;
+    for(var k=0;k<n;k++){
+      var f=k/n,w=(i===0&&k===0)?0:Math.sin((i*7+k)*1.7)*0.18;
+      seg.push([a[0]+(c[0]-a[0])*f+nx*w,a[1]+(c[1]-a[1])*f+nz*w]);
+    }
+  }
+  seg.push(pts[pts.length-1]);
+  var unit=new THREE.BoxGeometry(1,1,1);
+  var wall=new THREE.InstancedMesh(unit,M(0xb3a483),seg.length),top=new THREE.InstancedMesh(unit,M(0x8c7e64),seg.length);
+  var tw=[],hills=[],dm=new THREE.Object3D();
+  for(i=0;i<seg.length-1;i++){
+    var p=seg[i],q=seg[i+1],dx=q[0]-p[0],dz=q[1]-p[1],l=Math.hypot(dx,dz),ry=Math.atan2(-dz,dx);
+    dm.position.set((p[0]+q[0])/2,0.2,(p[1]+q[1])/2);dm.rotation.set(0,ry,0);dm.scale.set(l+0.06,0.4,0.26);dm.updateMatrix();wall.setMatrixAt(i,dm.matrix);
+    dm.position.y=0.42;dm.scale.set(l+0.06,0.06,0.32);dm.updateMatrix();top.setMatrixAt(i,dm.matrix);
+    if(i%3===0)tw.push([p[0],p[1],ry]);
+    if(i%2===0)hills.push([p[0]+(-dz/l)*(0.9+brnd()*0.5)*(i%4?1:-1),p[1]+(dx/l)*(0.9+brnd()*0.5)*(i%4?1:-1)]);
+  }
+  wall.count=top.count=seg.length-1;
+  var tower=new THREE.InstancedMesh(unit,M(0xa69676),tw.length);
+  tw.forEach(function(t,j){dm.position.set(t[0],0.3,t[1]);dm.rotation.set(0,t[2],0);dm.scale.set(0.42,0.6,0.42);dm.updateMatrix();tower.setMatrixAt(j,dm.matrix);});
+  var hill=new THREE.InstancedMesh(new THREE.ConeGeometry(0.8,1,6),M(0x9aa36c),hills.length);
+  hills.forEach(function(h,j){dm.position.set(h[0],0.22,h[1]);dm.rotation.set(0,j,0);dm.scale.set(1,0.3+brnd()*0.25,1);dm.position.y=dm.scale.y/2;dm.updateMatrix();hill.setMatrixAt(j,dm.matrix);});
+  [wall,top,tower,hill].forEach(function(m){m.frustumCulled=false;g.add(m);});
+  /* Großer Wachturm mit Dach beim Landeplatz */
+  box(g,0.6,0.75,0.6,0,0,0,M(0xa69676));
+  box(g,0.68,0.06,0.68,0,0.75,0,M(0x8c7e64));
+  add(g,new THREE.ConeGeometry(0.5,0.32,4),M(0x8b3a2a),0,0.97,0,Math.PI/4);
+}
+
+/* 3 Kolosseum: Außenmauer mit drei Bogenreihen, auf der Südseite eingestürzt */
+function mkKolosseum(g){
+  disc(g,1.75,0,0.012,0,M(0xcfc6b0),1.25,1);
+  var arches=canvasTex(128,128,function(c,w,h){
+    c.fillStyle='#dcc9a0';c.fillRect(0,0,w,h);
+    c.fillStyle='#d2bd92';c.fillRect(0,0,w,32);
+    c.fillStyle='#5f4d38';
+    for(var r=0;r<3;r++)for(var k=0;k<2;k++){var x=k*64+16,y=128-r*32-4;c.beginPath();c.moveTo(x,y);c.lineTo(x,y-18);c.arc(x+16,y-18,16,Math.PI,0);c.lineTo(x+32,y);c.fill();}
+    for(k=0;k<4;k++)c.fillRect(k*32+12,10,8,10);
+    c.fillStyle='#c3ad82';for(r=0;r<4;r++)c.fillRect(0,r*32,w,3);
+  });
+  var full=0.6*Math.PI*2;
+  var outer=new THREE.Mesh(new THREE.CylinderGeometry(1,1,1.05,56,1,true,Math.PI*0.7,full),new THREE.MeshLambertMaterial({map:rep(arches,24*0.6,1),side:THREE.DoubleSide}));
+  outer.position.y=0.525;outer.scale.set(1.25,1,1);g.add(outer);
+  var inner=new THREE.Mesh(new THREE.CylinderGeometry(0.9,0.9,0.66,56,1,true),new THREE.MeshLambertMaterial({map:rep(arches,20,0.63),side:THREE.DoubleSide}));
+  inner.position.y=0.33;inner.scale.set(1.25,1,1);g.add(inner);
+  /* Abbruchkante der Außenmauer: Reste mit zwei Bogenreihen */
+  var rest=new THREE.Mesh(new THREE.CylinderGeometry(1,1,0.32,56,1,true,Math.PI*0.7+full,Math.PI*2-full),new THREE.MeshLambertMaterial({map:rep(arches,24*0.4,0.3),side:THREE.DoubleSide}));
+  rest.position.y=0.16;rest.scale.set(1.25,1,1);g.add(rest);
+  var seats=new THREE.Mesh(new THREE.CylinderGeometry(0.9,0.48,0.62,48,1,true),M(0xbba886,{side:THREE.DoubleSide}));
+  seats.position.y=0.31;seats.scale.set(1.25,1,1);g.add(seats);
+  disc(g,0.5,0,0.02,0,M(0xb48c58),1.25,1);
+  var dark=M(0x6f5a40);
+  for(var i=-3;i<=3;i++)box(g,0.035,0.03,0.6,i*0.14,0.02,0,dark);
+  box(g,1.0,0.03,0.035,0,0.02,0,dark);
+}
+
+/* 4 Hagia Sophia: große flache Kuppel, zwei Halbkuppeln, vier Minarette */
+function mkHagia(g){
+  disc(g,1.6,0,0.012,0,M(0xcfc6b0));
+  var wall=M(0xd99c70),lead=M(0x8c959b),mina=M(0xebe4d4);
+  box(g,1.5,0.55,1.15,0,0,0,wall);
+  for(var sx=-1;sx<=1;sx+=2)for(var sz=-1;sz<=1;sz+=2)box(g,0.2,0.78,0.2,sx*0.48,0,sz*0.48,M(0xc98b62));
+  cyl(g,0.5,0.52,0.14,24,0,0.55,0,wall);
+  for(var i=0;i<20;i++){var a=i/20*6.283;box(g,0.05,0.07,0.05,Math.cos(a)*0.51,0.585,Math.sin(a)*0.51,M(0x4a3b30),-a);}
+  var dome=add(g,new THREE.SphereGeometry(0.5,24,10,0,Math.PI*2,0,Math.PI/2),lead,0,0.69,0);dome.scale.y=0.62;
+  [-1,1].forEach(function(s){
+    var h=add(g,new THREE.SphereGeometry(0.42,16,8,s<0?-Math.PI/2:Math.PI/2,Math.PI,0,Math.PI/2),lead,s*0.5,0.55,0);h.scale.y=0.62;
+    var e=add(g,new THREE.SphereGeometry(0.2,12,6,0,Math.PI*2,0,Math.PI/2),lead,s*0.62,0.55,s*0.32);e.scale.y=0.6;
+  });
+  [[-0.9,-0.72],[0.9,-0.72],[-0.9,0.72],[0.9,0.72]].forEach(function(p){
+    cyl(g,0.042,0.055,1.42,10,p[0],0,p[1],mina);
+    cyl(g,0.07,0.07,0.03,10,p[0],1.0,p[1],mina);
+    add(g,new THREE.ConeGeometry(0.05,0.32,10),lead,p[0],1.58,p[1]);
+  });
+}
+
+/* 5 Angkor Wat: Wassergraben, Damm von Westen, drei Stufen, fünf Türme wie Lotusknospen */
+function mkAngkor(g){
+  rect(g,3.6,3.6,0,0.01,0,M(0x3f8fb8));
+  rect(g,2.9,2.9,0,0.016,0,M(0x8fae6a));
+  var sand=M(0x8e8674),dark=M(0x77705f),light=M(0xa59d88);
+  box(g,0.6,0.04,0.2,-1.65,0,0,light);
+  [[0,-1.3,2.62,0.06],[0,1.3,2.62,0.06],[-1.3,0,0.06,2.62],[1.3,0,0.06,2.62]].forEach(function(w){box(g,w[2],0.12,w[3],w[0],0,w[1],sand);});
+  box(g,0.16,0.22,0.6,-1.3,0,0,dark);
+  box(g,0.7,0.02,0.14,-0.9,0,0,light);
+  box(g,1.4,0.22,1.4,0,0,0,sand);
+  box(g,1.05,0.24,1.05,0,0.22,0,dark);
+  box(g,0.72,0.28,0.72,0,0.46,0,sand);
+  function lotus(h,r,x,z,y){lathe(g,[[0,0],[r,0],[r,h*0.18],[r*0.88,h*0.26],[r*1.02,h*0.36],[r*0.92,h*0.5],[r*0.72,h*0.66],[r*0.5,h*0.8],[r*0.26,h*0.92],[0,h]],8,x,y,z,M(0x857d6b));}
+  lotus(1.15,0.2,0,0,0.74);
+  [[-1,-1],[1,-1],[-1,1],[1,1]].forEach(function(p){lotus(0.7,0.13,p[0]*0.28,p[1]*0.28,0.74);});
+  lotus(0.4,0.1,-1.3,0,0.22);
+  /* Urwald rund um den Graben */
+  var tree=M(0x4e8a3f),geo=new THREE.SphereGeometry(0.22,7,5);
+  for(var i=0;i<46;i++){
+    var a=brnd()*6.283;if(Math.abs(Math.cos(a))>0.92&&Math.cos(a)<0)continue;
+    var r=2.05+brnd()*0.9,t=add(g,geo,tree,Math.cos(a)*r*1.05,0.15,Math.sin(a)*r*1.05);t.scale.setScalar(0.8+brnd()*0.6);
+  }
+}
+
+/* 6 Taj Mahal: Sockel, Gebäude mit Bogennischen, Zwiebelkuppel, vier Minarette, Garten mit Wasserbecken */
+function mkTaj(g){
+  rect(g,2.2,2.1,0,0.012,2.0,M(0x6fae5a));
+  rect(g,0.14,1.9,0,0.02,2.0,M(0x5aa7d6));
+  rect(g,1.9,0.1,0,0.018,2.0,M(0xd9cdb5));
+  rect(g,5,0.7,0,0.012,-1.4,M(0x5aa7d6));
+  var marble=M(0xf6f3ec),shade=M(0xc9c1b2),gold=M(0xd4a52c);
+  box(g,1.9,0.14,1.9,0,0,0,M(0xe9e3d6));
+  var main=cyl(g,0.6,0.6,0.72,8,0,0.14,0,marble);main.rotation.y=Math.PI/8;
+  [[0,0.56,0],[0,-0.56,0],[0.56,0,Math.PI/2],[-0.56,0,Math.PI/2]].forEach(function(f){
+    box(g,0.3,0.5,0.03,f[0],0.16,f[1],shade,f[2]);
+    add(g,new THREE.ConeGeometry(0.15,0.12,4),shade,f[0]*1.0,0.72,f[1]*1.0,Math.PI/4).scale.z=0.15;
+  });
+  [[-1,-1],[1,-1],[-1,1],[1,1]].forEach(function(p){
+    cyl(g,0.1,0.1,0.12,8,p[0]*0.33,0.86,p[1]*0.33,marble);
+    add(g,new THREE.SphereGeometry(0.11,10,6,0,Math.PI*2,0,Math.PI/2),marble,p[0]*0.33,0.98,p[1]*0.33);
+    cyl(g,0.045,0.06,1.12,10,p[0]*0.86,0.14,p[1]*0.86,marble);
+    [0.5,0.85].forEach(function(y){cyl(g,0.08,0.08,0.025,10,p[0]*0.86,y,p[1]*0.86,marble);});
+    add(g,new THREE.SphereGeometry(0.07,10,6,0,Math.PI*2,0,Math.PI/2),marble,p[0]*0.86,1.26,p[1]*0.86);
+  });
+  cyl(g,0.3,0.3,0.22,16,0,0.86,0,marble);
+  lathe(g,[[0,0],[0.3,0],[0.37,0.1],[0.41,0.24],[0.39,0.38],[0.31,0.52],[0.2,0.64],[0.09,0.74],[0.04,0.82],[0,0.9]],20,0,1.08,0,marble);
+  cyl(g,0.012,0.02,0.14,6,0,1.97,0,gold);
+}
+
+/* 7 Eiffelturm: vier Beine mit Bögen, zwei Plattformen, Gitterwerk aus Eisen */
+function mkEiffel(g){
+  rect(g,0.9,3.0,0,0.012,1.9,M(0x8cc06a));
+  rect(g,4.5,0.35,0,0.012,-1.0,M(0x5a9fcf));
+  var iron=0x7a5c44,solid=M(iron);
+  var lat=canvasTex(64,64,function(c,w,h){c.clearRect(0,0,w,h);c.strokeStyle='#fff';c.lineWidth=7;c.strokeRect(3,3,w-6,h-6);c.lineWidth=5;c.beginPath();c.moveTo(0,0);c.lineTo(w,h);c.moveTo(w,0);c.lineTo(0,h);c.stroke();});
+  function grid(pts,rx,ry){var m=lathe(g,pts,4,0,0,0,new THREE.MeshLambertMaterial({color:iron,map:rep(lat,rx,ry),alphaTest:0.5,side:THREE.DoubleSide}));m.rotation.y=Math.PI/4;}
+  var S=Math.SQRT2;
+  [[-1,-1],[1,-1],[-1,1],[1,1]].forEach(function(p){
+    var a=new THREE.Vector3(p[0]*0.64,0,p[1]*0.64),m=new THREE.Vector3(p[0]*0.5,0.34,p[1]*0.5),t=new THREE.Vector3(p[0]*0.38,0.64,p[1]*0.38);
+    [[a,m],[m,t]].forEach(function(s){
+      var d=new THREE.Vector3().subVectors(s[1],s[0]),l=d.length();
+      var leg=new THREE.Mesh(new THREE.CylinderGeometry(0.08,0.1,l,4),solid);
+      leg.position.copy(s[0]).add(s[1]).multiplyScalar(0.5);
+      leg.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),d.normalize());g.add(leg);
+    });
+  });
+  for(var k=0;k<4;k++){var arc=new THREE.Mesh(new THREE.TorusGeometry(0.47,0.025,5,18,Math.PI),solid);arc.rotation.y=k*Math.PI/2;
+    arc.position.set(Math.sin(k*Math.PI/2)*0.5,0.0,Math.cos(k*Math.PI/2)*0.5);g.add(arc);}
+  box(g,0.95,0.09,0.95,0,0.62,0,M(0x5e4634));
+  grid([[0.4*S,0.71],[0.33*S,0.92],[0.24*S,1.18]],12,3);
+  box(g,0.54,0.06,0.54,0,1.18,0,M(0x5e4634));
+  grid([[0.22*S,1.24],[0.16*S,1.6],[0.11*S,2.05],[0.075*S,2.5],[0.05*S,2.95]],8,16);
+  box(g,0.13,0.12,0.13,0,2.95,0,M(0x5e4634));
+  cyl(g,0.012,0.02,0.24,6,0,3.07,0,solid);
+}
+
+/* 8 Sagrada Família: Kirchenschiff, viele spitze Türme mit bunten Spitzen, Baukran (noch nicht fertig) */
+function mkSagrada(g){
+  disc(g,1.7,0,0.012,0,M(0xcfc6b0));
+  var stone=M(0xbcae8f),old=M(0x9a8d70),spire=M(0xc9bc9d);
+  var tops=[0xe0503c,0xf2c230,0x3a8fd0,0x4caf50,0xf28c28];
+  box(g,1.5,0.7,0.62,0,0,0,stone);
+  box(g,0.6,0.62,1.3,0,0,0,stone);
+  cyl(g,0.32,0.34,0.62,10,-0.78,0,0,old);
+  function tower(h,r,x,z,mat,ci){
+    lathe(g,[[0,0],[r,0],[r*1.02,h*0.3],[r*0.94,h*0.52],[r*0.76,h*0.7],[r*0.52,h*0.82],[r*0.28,h*0.92],[r*0.1,h*0.97],[0,h]],10,x,0,z,mat);
+    add(g,new THREE.SphereGeometry(r*0.55,8,6),M(tops[ci%tops.length]),x,h,z);
+  }
+  [-0.33,-0.11,0.11,0.33].forEach(function(x,i){var h=(i===1||i===2)?1.85:1.6;tower(h,0.1,x,-0.72,old,i);tower(h,0.1,-x,0.72,spire,i+2);});
+  [[-1,-1],[1,-1],[-1,1],[1,1]].forEach(function(p,i){tower(2.25,0.13,p[0]*0.24,p[1]*0.24,spire,i+1);});
+  tower(2.3,0.14,-0.5,0,spire,1);
+  tower(2.75,0.17,0,0,spire,0);
+  box(g,0.04,0.22,0.04,0,2.8,0,M(0xffffff,{emissive:0x444444}));
+  box(g,0.16,0.04,0.04,0,2.93,0,M(0xffffff,{emissive:0x444444}));
+  /* Kran an der unfertigen Hauptfassade */
+  var yel=M(0xf2b705);
+  box(g,0.07,3.0,0.07,1.05,0,0.35,yel);
+  box(g,1.6,0.06,0.07,0.65,2.9,0.35,yel);
+  box(g,0.12,0.12,0.1,1.05,2.78,0.35,M(0x333333));
+  box(g,0.18,0.14,0.12,1.55,2.76,0.35,M(0x777777));
+  box(g,0.008,0.9,0.008,0.05,2.0,0.35,M(0x333333));
+  box(g,0.05,0.5,0.4,0.9,0,0,M(0x9ea0a3));
+}
+
+/* 9 Empire State Building: Stufen nach oben, Spitze mit Mast, umgeben von Hochhäusern */
+function mkEmpire(g,b){
+  disc(g,2.4,0,0.012,0,M(0x9ea3a8));
+  var col=0xd2cbbb,y=0;
+  [[1.0,0.32,0.8],[0.74,1.55,0.56],[0.6,0.5,0.46],[0.46,0.3,0.36],[0.34,0.2,0.28],[0.24,0.18,0.22]].forEach(function(s){
+    var m=new THREE.Mesh(new THREE.BoxGeometry(s[0],s[1],s[2]),[0,0,0,0,0,0].map(function(_,f){
+      var w=f<2?s[2]:s[0];return new THREE.MeshLambertMaterial({color:col,map:rep(windows(),Math.max(1,Math.round(w*14)),Math.max(1,Math.round(s[1]*12)))});}));
+    m.position.y=y+s[1]/2;g.add(m);y+=s[1];
+  });
+  cyl(g,0.07,0.1,0.34,8,0,y,0,M(0xc9c2b2));
+  cyl(g,0.012,0.03,0.36,6,0,y+0.34,0,M(0x777777));
+  city(g,26,0.95,2.2,0.25,1.2,0xb8b2a6,b.pad);
+}
+
+/* 10 Burj Khalifa: drei Flügel, die spiralförmig nach oben stufenweise schmaler werden, mit Spitze */
+function mkBurj(g,b){
+  disc(g,2.3,0,0.012,0,M(0xe2cf9c));
+  disc(g,0.6,-0.2,0.02,1.25,M(0x4f9fd0),1.5,1);
+  var glass=new THREE.MeshPhongMaterial({color:0xb9c9d6,specular:0xffffff,shininess:70,flatShading:true,
+    map:rep(canvasTex(16,16,function(c,w,h){c.fillStyle='#fff';c.fillRect(0,0,w,h);c.fillStyle='#8fa3b5';c.fillRect(0,10,w,4);}),1,1)});
+  var tex=glass.map;tex.repeat.set(2,30);
+  cyl(g,0.08,0.3,4.4,6,0,0,0,glass);
+  var N=9,top=4.15;
+  for(var k=0;k<3;k++){
+    var a=k*Math.PI*2/3+Math.PI/6;
+    for(var i=0;i<N;i++){
+      var L=0.95*(1-i/N)+0.14,H=0.45+(i+1)*(top-0.45)/N-(2-k)*(top-0.45)/N/3,w=0.3*(1-i/N*0.45);
+      var m=box(g,L,H,w,Math.cos(a)*L/2,0,Math.sin(a)*L/2,glass,-a);
+    }
+  }
+  cyl(g,0.008,0.06,0.95,6,0,4.35,0,M(0xd0d6dc));
+  city(g,14,1.2,2.2,0.3,0.9,0xa9bccb,b.pad);
+}
+
+var BWBUILD={bw_gizeh:mkGizeh,bw_mauer:mkMauer,bw_kolosseum:mkKolosseum,bw_hagia:mkHagia,bw_angkor:mkAngkor,bw_taj:mkTaj,bw_eiffel:mkEiffel,bw_sagrada:mkSagrada,bw_empire:mkEmpire,bw_burj:mkBurj};
+function buildBW(){
+  var ringGeo=new THREE.TorusGeometry(0.5,0.07,8,28),gemGeo=new THREE.OctahedronGeometry(0.22);
+  BW.forEach(function(b){
+    var g=new THREE.Group(),model=new THREE.Group(),sc=b.sc||1;
+    BWBUILD[b.id](model,b);
+    model.scale.setScalar(sc);g.add(model);
+    b.pad=[b.pad[0]*sc,b.pad[1]*sc];b.h*=sc;b.cd*=sc;
+    /* Landeplatz: goldener Ring, darüber ein schwebender Edelstein */
+    var mat=new THREE.MeshLambertMaterial({color:0xffb300,emissive:0x553300});
+    var ring=new THREE.Mesh(ringGeo,mat);ring.rotation.x=Math.PI/2;ring.position.set(b.pad[0],0.07,b.pad[1]);
+    var gem=new THREE.Mesh(gemGeo,mat);gem.position.set(b.pad[0],0.9,b.pad[1]);
+    g.add(ring,gem);
+    b.bx=wx(b.lon);b.x=b.bx;b.z=wz(b.lat);
+    g.position.set(b.x,0,b.z);scene.add(g);
+    b.group=g;b.mat=mat;b.gem=gem;
+    b.pin={bx:b.bx+b.pad[0],x:b.bx+b.pad[0],z:b.z+b.pad[1],bw:b};
+    /* Kamera beim Landen: hinter dem Landeplatz, leicht seitlich, mit Blick auf das Bauwerk */
+    var l=Math.hypot(b.pad[0],b.pad[1]),ux=b.pad[0]/l,uz=b.pad[1]/l;
+    b.cx=ux*b.cd-uz*b.cd*0.45;b.cz=uz*b.cd+ux*b.cd*0.45;b.cy=b.h*0.5+1.3;b.ly=b.h*0.4;
+    b.label=makeLabel(b.name,0.75,'#8a3b00');b.label.position.set(b.x,b.h+0.75,b.z);scene.add(b.label);
+  });
+  refreshBW();
+}
+function refreshBW(){
+  BW.forEach(function(b){var v=!!bwSeen[b.id];b.mat.color.setHex(v?0x35c26b:0xffb300);b.mat.emissive.setHex(v?0x0a2a12:0x553300);b.gem.visible=!v;});
+}
+function bwCount(){return BW.filter(function(b){return bwSeen[b.id];}).length;}
+function updateBW(t){
+  for(var i=0;i<BW.length;i++){
+    var b=BW[i];
+    b.x=nearX(b.bx);b.pin.x=b.x+b.pad[0];
+    var dx=b.x-P.x,dz=b.z-P.z,d=Math.sqrt(dx*dx+dz*dz);
+    b.group.position.x=b.x;b.group.visible=b.id==='bw_mauer'||d<80;
+    b.gem.position.y=0.9+0.12*Math.sin(t*3+i);b.gem.rotation.y=t*1.5;
+    var op=Math.max(0,Math.min(1,1.5-d/22));
+    b.label.position.x=b.x;b.label.material.opacity=op;b.label.visible=op>0.02;
+  }
+}
+/* Flughöhe: über hohen Bauwerken steigt das Flugzeug von selbst nach oben */
+function cruiseY(){
+  var y=3.2;
+  for(var i=0;i<BW.length;i++){
+    var b=BW[i];if(b.h<2.5)continue;
+    var dx=nearX(b.bx)-P.x,dz=b.z-P.z,d=Math.sqrt(dx*dx+dz*dz);
+    if(d<6.5){var f=Math.min(1,(6.5-d)/3);f=f*f*(3-2*f);y=Math.max(y,3.2+(b.h+1.1-3.2)*f);}
+  }
+  return y;
+}
+function startBW(b){
+  state='landing';curPin=b.pin;lockId=b.id;nearC=null;$('land').classList.add('hidden');
+  input.left=input.right=input.boost=input.slow=false;
+  tone([392,523,659]);
+  setTimeout(function(){openBW(b);},1500);
+}
+function openBW(b){
+  var first=!bwSeen[b.id];
+  if(first){bwSeen[b.id]=1;score+=5;save();}
+  updateScore();refreshBW();
+  tone([523,659,784,1047]);
+  var ov=$('ov');ov.classList.remove('hidden');ov.innerHTML='';
+  var card=document.createElement('div');card.className='card bwcard';
+  card.innerHTML='<div class="small">🛬 Gelandet: Berühmtes Bauwerk '+bwCount()+' von '+BW.length+'</div>'+
+    '<div style="font-size:52px;line-height:1.2">'+b.emo+'</div>'+
+    '<h2>'+b.name+'</h2>'+
+    '<p class="bwwhere">📍 '+b.ort+' · '+b.land+'<br>🕰️ Gebaut: '+b.zeit+'</p>'+
+    b.info.map(function(s){return '<p class="bwinfo">💡 '+s+'</p>';}).join('')+
+    '<p class="small">'+(first?'+5 Punkte':'Hier warst du schon.')+'</p>';
+  var btn=document.createElement('button');btn.className='btn';btn.textContent='Weiterfliegen ✈️';
+  btn.addEventListener('click',function(){ov.classList.add('hidden');state='fly';});
+  card.appendChild(btn);ov.appendChild(card);
+}
+function drawMiniBW(m){
+  for(var i=0;i<BW.length;i++){
+    var b=BW[i],p=m(b.bx,b.z);
+    miniCtx.fillStyle='#fff';miniCtx.fillRect(p[0]-3.5,p[1]-3.5,7,7);
+    miniCtx.fillStyle=bwSeen[b.id]?'#0f7a3a':'#c26a00';miniCtx.fillRect(p[0]-2.5,p[1]-2.5,5,5);
+  }
+}
+
+
 /* ---------- Flugzeug ---------- */
 var plane=new THREE.Group(),prop,shadow;
 (function(){
@@ -626,7 +1021,7 @@ addEventListener('keydown',function(e){
   else if(k==='ArrowRight'||k==='d'||k==='D'){input.right=true;e.preventDefault();}
   else if(k==='ArrowUp'||k==='w'||k==='W'){input.boost=true;e.preventDefault();}
   else if(k==='ArrowDown'||k==='s'||k==='S'){input.slow=true;e.preventDefault();}
-  else if((k===' '||k==='Enter')&&state==='fly'&&nearC){e.preventDefault();startLanding(nearC);}
+  else if((k===' '||k==='Enter')&&state==='fly'&&nearC){e.preventDefault();landAt(nearC);}
 });
 addEventListener('keyup',function(e){
   var k=e.key;
@@ -636,7 +1031,8 @@ addEventListener('keyup',function(e){
   else if(k==='ArrowDown'||k==='s'||k==='S')input.slow=false;
 });
 addEventListener('blur',function(){input.left=input.right=input.boost=input.slow=false;});
-$('land').addEventListener('click',function(){if(state==='fly'&&nearC)startLanding(nearC);});
+$('land').addEventListener('click',function(){if(state==='fly'&&nearC)landAt(nearC);});
+function landAt(n){if(n.pin.bw)startBW(n);else startLanding(n);}
 $('bM').addEventListener('click',function(){muted=!muted;$('bM').textContent=muted?'🔇':'🔊';});
 $('bN').addEventListener('click',function(){if(state==='fly'){chooseTarget(true);refreshPins();}});
 
@@ -663,7 +1059,7 @@ function refreshPins(){
   });
   window.__beam.visible=!!target;
 }
-function updateScore(){$('sc').textContent=score;$('cnt').textContent=visitedCount();$('tot').textContent=NC;}
+function updateScore(){$('sc').textContent=score;$('cnt').textContent=visitedCount();$('tot').textContent=NC;$('bwc').textContent=bwCount();$('bwt').textContent=BW.length;}
 
 /* Flaggen: Bilder aus assets/vendor (flag-icons), kein fremder Server */
 var flagOK={};
@@ -808,7 +1204,7 @@ function showWin(){
   ov.innerHTML='<div class="card"><div style="font-size:70px">🏆</div><h1>Du bist Welt-Meister!</h1><p>Du hast alle '+NC+' Länder der Welt besucht und ihre Hauptstädte gelernt.</p><p class="stars">⭐ '+score+'</p></div>';
   var card=ov.firstChild;
   var b=document.createElement('button');b.className='btn';b.textContent='Nochmal spielen';
-  b.addEventListener('click',function(){visited={};score=0;save();updateScore();ov.classList.add('hidden');chooseTarget(false);refreshPins();state='fly';});
+  b.addEventListener('click',function(){visited={};bwSeen={};refreshBW();score=0;save();updateScore();ov.classList.add('hidden');chooseTarget(false);refreshPins();state='fly';});
   card.appendChild(b);
   var home=document.createElement('a');home.className='btn alt';home.href='../../';home.textContent='🏠 Alle Spiele';home.style.textDecoration='none';card.appendChild(home);
   tone([523,659,784,1047,1319]);
@@ -820,11 +1216,12 @@ function showStart(){
   var has=visitedCount()>0&&visitedCount()<NC;
   ov.innerHTML='<div class="card"><div style="font-size:60px">✈️🌍</div><h1>Flug über die Welt</h1>'+
    '<p>Flieg mit dem Flugzeug um die ganze Welt! Folge dem <b>orangen Pfeil</b> zum Ziel-Land, lande bei der <b>gelben Kugel</b> (Hauptstadt) und beantworte die Fragen.</p>'+
+   '<p>🏛️ Unterwegs warten <b>'+BW.length+' berühmte Bauwerke</b> – zum Beispiel der Eiffelturm. Lande beim <b>goldenen Ring</b> daneben und erfahre etwas darüber!</p>'+
    '<p>Es gibt <b>'+NC+' Länder</b> auf 6 Kontinenten. Dein Spielstand wird gespeichert – du kannst jederzeit weiterspielen.</p>'+
    '<p class="small">📱 Handy: ◀ ▶ gedrückt halten, 🚀 = schneller<br>💻 Computer: Pfeiltasten oder A/D · W = schneller · S = langsamer · Leertaste = landen</p></div>';
   var card=ov.firstChild;
   function go(reset){
-    if(reset){visited={};score=0;save();}
+    if(reset){visited={};bwSeen={};refreshBW();score=0;save();}
     ov.classList.add('hidden');
     ['mission','score','mini','bM','bN','bH','bL','bR','bB'].forEach(function(id){$(id).classList.remove('hidden');});
     updateScore();chooseTarget(false);refreshPins();state='fly';
@@ -852,7 +1249,7 @@ function km(lon1,lat1,lon2,lat2){
 
 function update(dt,t){
   uniforms.uTime.value=t;
-  var flying=(state==='fly'||state==='menu'),i,c;
+  var flying=(state==='fly'||state==='menu'),i,c,yT=3.2;
   var tgtTurn=0;
   if(state==='menu'){tgtTurn=0.28;}
   else if(state==='fly'){tgtTurn=(input.right?1:0)-(input.left?1:0);}
@@ -861,7 +1258,8 @@ function update(dt,t){
     P.yaw+=P.turn*1.3*dt;
     var sp=7*(input.boost?2.4:(input.slow?0.5:1));
     P.x+=Math.sin(P.yaw)*sp*dt;P.z-=Math.cos(P.yaw)*sp*dt;
-    P.y+=(3.2-P.y)*Math.min(1,dt*1.6);
+    yT=cruiseY();
+    P.y+=(yT-P.y)*Math.min(1,dt*(yT>P.y?3:1.6));
     var cz=Math.min(BZ1,Math.max(BZ0,P.z));
     if(cz!==P.z&&state==='fly'&&t-lastClampToast>2.5){toast('Brr, hier ist es zu kalt – dreh um! 🥶');lastClampToast=t;}
     P.z=cz;
@@ -870,7 +1268,7 @@ function update(dt,t){
     if(curPin){var k=Math.min(1,dt*2.4);P.x+=(curPin.x-P.x)*k;P.z+=(curPin.z-P.z)*k;}
     P.y+=(0.55-P.y)*Math.min(1,dt*2.2);
   }
-  var pitch=Math.max(-0.35,Math.min(0.3,(3.2-P.y)*0.12*(flying?1:-1)));
+  var pitch=Math.max(-0.35,Math.min(0.3,(yT-P.y)*0.12*(flying?1:-1)));
   if(!flying)pitch=Math.max(-0.3,Math.min(0.2,(P.y-0.55)*-0.08));
   plane.position.set(P.x,P.y,P.z);
   plane.rotation.set(pitch,-P.yaw,-P.turn*0.6);
@@ -883,6 +1281,7 @@ function update(dt,t){
   for(i=0;i<3;i++)WORLDS[i].position.x=(k0+i-1)*MW;
   seaMesh.position.x=P.x;seaMesh.position.z=P.z;
   for(i=0;i<NC;i++){c=C[i];c.pin.x=nearX(c.pin.bx);c.pin.group.position.x=c.pin.x;}
+  updateBW(t);
 
   /* Nähe zu Hauptstadt – das Ziel-Land hat Vorrang, wenn mehrere Hauptstädte dicht beieinander liegen */
   if(state==='fly'){
@@ -890,16 +1289,18 @@ function update(dt,t){
     for(i=0;i<NC;i++){var p=C[i].pin,dx=p.x-P.x,dz=p.z-P.z,d=dx*dx+dz*dz;
       if(C[i]===target&&d<R_LAND*R_LAND)d=-1;
       if(d<bd){bd=d;best=C[i];}}
-    if(lockId){var lp=BYID[lockId].pin,ddx=lp.x-P.x,ddz=lp.z-P.z;if(ddx*ddx+ddz*ddz>(R_LAND+1.2)*(R_LAND+1.2))lockId=null;}
+    for(i=0;i<BW.length;i++){var bp=BW[i].pin,bdx=bp.x-P.x,bdz=bp.z-P.z,bd2=bdx*bdx+bdz*bdz;if(bd2<bd){bd=bd2;best=BW[i];}}
+    if(lockId){var lp=(BYID[lockId]||BWBY[lockId]).pin,ddx=lp.x-P.x,ddz=lp.z-P.z;if(ddx*ddx+ddz*ddz>(R_LAND+1.2)*(R_LAND+1.2))lockId=null;}
     if(best&&bd<R_LAND*R_LAND&&best.id!==lockId){
-      if(nearC!==best){nearC=best;$('land').textContent='🛬 '+cap1(prep('in',best))+' landen';$('land').classList.remove('hidden');}
+      if(nearC!==best){nearC=best;$('land').textContent='🛬 '+(best.pin.bw?best.at:cap1(prep('in',best)))+' landen';$('land').classList.remove('hidden');}
     }else if(nearC){nearC=null;$('land').classList.add('hidden');}
   }
 
   /* Kamera */
   if(state==='landing'||state==='quiz'||state==='win'){
     var cp=curPin||{x:P.x,z:P.z};
-    dp.set(cp.x+3.2,1.9,cp.z+4.4);dl.set(cp.x,0.8,cp.z);
+    if(cp.bw){var cb=cp.bw;dp.set(cb.x+cb.cx,cb.cy,cb.z+cb.cz);dl.set(cb.x,cb.ly,cb.z);}
+    else{dp.set(cp.x+3.2,1.9,cp.z+4.4);dl.set(cp.x,0.8,cp.z);}
   }else{
     var fx=Math.sin(P.yaw),fz=-Math.cos(P.yaw);
     dp.set(P.x-fx*6.8,P.y+2.7,P.z-fz*6.8);dl.set(P.x+fx*9,P.y-1.0,P.z+fz*9);
@@ -916,6 +1317,7 @@ function update(dt,t){
     c.pin.ring.scale.setScalar(c===target?1+0.25*Math.sin(t*4):1);
     var lx=nearX(c.lbx),ddx2=lx-P.x,ddz2=c.lz-P.z;
     var op=Math.max(0,Math.min(1,1.25-Math.sqrt(ddx2*ddx2+ddz2*ddz2)/17));
+    if(state!=='fly'&&curPin&&curPin.bw)op=0; /* beim Bauwerk: Ländernamen verdecken sonst die Sicht */
     if(op>0.02&&!c.label){c.label=makeLabel(c.short,c.lSize);c.label.position.set(lx,0.75+c.lSize*0.25,c.lz);scene.add(c.label);}
     if(c.label){c.label.position.x=lx;c.label.material.opacity=op;c.label.visible=op>0.02;}
   }
@@ -951,6 +1353,7 @@ function drawMini(t){
     if(visited[c.id]){miniCtx.fillStyle='#0f7a3a';miniCtx.fillRect(p[0]-2,p[1]-2,4,4);}
     else{miniCtx.fillStyle='rgba(255,255,255,.85)';miniCtx.fillRect(p[0]-1,p[1]-1,2,2);}
   }
+  drawMiniBW(m);
   if(target){
     var q=m(target.pin.bx,target.pin.z),r=7+4*Math.abs(Math.sin(t*4));
     miniCtx.beginPath();miniCtx.arc(q[0],q[1],r,0,6.283);miniCtx.lineWidth=3;miniCtx.strokeStyle='#ff9f1c';miniCtx.stroke();
@@ -971,9 +1374,11 @@ function frame(){
 
 /* ---------- Start ---------- */
 load();
+/* Zugang für den Durchspiel-Test (tools/spieltests/weltflug.js), nur mit ?test in der Adresse */
+if(/[?&]test\b/.test(location.search))window.WELTFLUG={P:P,BW:BW,C:C,state:function(){return state;},near:function(){return nearC&&nearC.id;}};
 setTimeout(function(){
   try{
-    buildMap();buildWorld();
+    buildMap();buildWorld();buildBW();
   }catch(e){
     $('loading').textContent='Leider ist beim Laden ein Fehler passiert: '+e.message;
     return;

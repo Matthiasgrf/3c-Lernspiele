@@ -72,7 +72,7 @@ module.exports = async function (t) {
   await page.waitForFunction(() => BAUER.state().sheaves >= 3, null, { timeout: 30000 });
   await page.evaluate(() => { BAUER.input(null); BAUER.speed(1); });
   let s = await state(page);
-  t.check('Mähen: Getreide fällt und Garben entstehen', s.mown >= 42 && s.sheaves >= 3 && await page.textContent('#garben') === String(s.sheaves), s.mown + ' Felder, ' + s.sheaves + ' Garben');
+  t.check('Mähen: Getreide fällt und Garben bleiben auf dem Feld liegen', s.mown >= 42 && s.lying >= 3 && s.load === 0 && await page.textContent('#karre') === '0', s.mown + ' Felder, ' + s.lying + ' Garben');
   await page.waitForTimeout(300);
   await t.shot(page, 'maehen');
 
@@ -101,6 +101,58 @@ module.exports = async function (t) {
   await page.waitForFunction(() => Object.keys(BAUER.state().seen).some(k => /hase|hamster|maus|lerche/.test(k)), null, { timeout: 10000 });
   t.check('Tier huscht weg, Hinweis erscheint', /Feld(hase|hamster|maus|lerche)/.test(await page.textContent('#toast')));
 
+  /* Schubkarren: Bei 6 liegenden Garben mäht die Sense nicht weiter */
+  await page.evaluate(() => { BAUER.teleport(-6, 10, 0); BAUER.speed(12); BAUER.input({ fwd: 1, mow: true }); });
+  await page.waitForFunction(() => BAUER.state().lying >= 6, null, { timeout: 30000 });
+  await page.waitForTimeout(400);
+  const mownFull = (await state(page)).mown;
+  await page.waitForTimeout(800);
+  await page.evaluate(() => { BAUER.input(null); BAUER.speed(1); });
+  s = await state(page);
+  t.check('Bei 6 liegenden Garben wird nicht weiter gemäht, Hinweis auf den Schubkarren', s.mown === mownFull && s.lying === 6 &&
+    /Schubkarren/.test(await page.textContent('#toast')) && /Schubkarren holen/.test(await page.textContent('#compass-text')), s.mown + ' / ' + mownFull);
+
+  /* zum Schubkarren laufen: Bauer fasst ihn an */
+  await page.evaluate(() => { const c = BAUER.cart(); BAUER.teleport(c.x - Math.sin(c.rot) * 3.6, c.z - Math.cos(c.rot) * 3.6, c.rot); BAUER.input({ fwd: 1 }); });
+  await page.waitForFunction(() => BAUER.state().held, null, { timeout: 10000 });
+  await page.evaluate(() => BAUER.input(null));
+  t.check('Zum Schubkarren laufen: Bauer schiebt ihn', /schiebst den Schubkarren/.test(await page.textContent('#toast')));
+
+  /* Garben einsammeln, bis der Schubkarren voll ist */
+  for (const p of await page.evaluate(() => BAUER.lying())) {
+    await page.evaluate(p => BAUER.teleport(p.x, p.z - 1.75, 0), p);
+    await page.waitForTimeout(120);
+  }
+  await page.waitForFunction(() => BAUER.state().flying === 0, null, { timeout: 10000 });
+  s = await state(page);
+  t.check('Garben landen im Schubkarren, voll bei 6', s.load === 6 && s.lying === 0 && await page.textContent('#karre') === '6' &&
+    /voll/.test(await page.textContent('#toast')) && /Bauernhof/.test(await page.textContent('#compass-text')), JSON.stringify({ load: s.load, lying: s.lying }));
+  await t.shot(page, 'schubkarren');
+
+  /* zum Bauernhof fahren und leeren */
+  await page.evaluate(() => {
+    const f = BAUER.farm(), dx = f.hx - f.x, dz = f.hz - f.z, l = Math.hypot(dx, dz);
+    BAUER.teleport(f.x - dx / l * 6, f.z - dz / l * 6, Math.atan2(dx, dz)); BAUER.input({ fwd: 1 });
+  });
+  await page.waitForFunction(() => BAUER.state().hof === 6, null, { timeout: 15000 });
+  await page.evaluate(() => BAUER.input(null));
+  await page.waitForFunction(() => BAUER.state().flying === 0, null, { timeout: 10000 });
+  s = await state(page);
+  t.check('Am Bauernhof wird der Schubkarren geleert', s.load === 0 && s.hof === 6 && await page.textContent('#garben') === '6' &&
+    /6 Garben sind jetzt auf dem Hof/.test(await page.textContent('#toast')));
+  await t.shot(page, 'bauernhof');
+
+  /* Leertaste stellt den Schubkarren ab, danach wird wieder gemäht */
+  await page.keyboard.press(' ');
+  await page.waitForTimeout(200);
+  s = await state(page);
+  t.check('Leertaste stellt den Schubkarren ab', !s.held);
+  await page.evaluate(() => { BAUER.teleport(24, -32, 0); BAUER.input({ mow: true }); });
+  const m0 = (await state(page)).mown;
+  await page.waitForFunction(m => BAUER.state().mown > m, m0, { timeout: 10000 });
+  await page.evaluate(() => BAUER.input(null));
+  t.check('Nach dem Abladen mäht die Sense wieder', true);
+
   /* Station 1: erst falsch, dann Tipp, dann schließen ohne Lösung, dann richtig */
   await walkTo(page, 0);
   t.check('Station 1 öffnet das Aufgabenfenster', /Station 1/.test(await page.textContent('#q-title')) && await page.locator('#q-body input.ans-field').count() === 3);
@@ -128,15 +180,15 @@ module.exports = async function (t) {
   await page.waitForTimeout(4600);
   t.check('Gewinn-Bildschirm mit „Nochmal spielen“ und „Alle Spiele“', await page.locator('#win-screen').isVisible() &&
     await page.locator('#againBtn').isVisible() && await page.locator('#win-screen a[href="../../"]').isVisible() &&
-    /Garben gebunden/.test(await page.textContent('#win-stats')) && await page.textContent('#score') === '10');
+    /6 Garben auf den Hof gebracht/.test(await page.textContent('#win-stats')) && await page.textContent('#score') === '10');
   await t.shot(page, 'gewonnen');
 
   /* Speicherstand: neu laden, weiterspielen */
   await page.reload({ waitUntil: 'load' });
   t.check('Nach dem Neuladen: „Weiterspielen“ und „Neu anfangen“', /Weiterspielen/.test(await page.textContent('#startBtn')) && await page.locator('#resetBtn').isVisible());
   const afterReload = await state(page);
-  t.check('Gemähte Felder, Garben und Stationen bleiben erhalten', afterReload.solved === 10 && afterReload.mown >= 42 && afterReload.sheaves >= 3 && afterReload.flowers >= 1,
-    JSON.stringify({ solved: afterReload.solved, mown: afterReload.mown, sheaves: afterReload.sheaves }));
+  t.check('Gemähte Felder, Garben, Hof und Stationen bleiben erhalten', afterReload.solved === 10 && afterReload.mown >= 42 && afterReload.hof === 6 && afterReload.flowers >= 1 &&
+    await page.textContent('#garben') === '6', JSON.stringify({ solved: afterReload.solved, mown: afterReload.mown, hof: afterReload.hof }));
   await page.click('#startBtn');
   await mode(page, 'win');
   await page.click('#moreBtn');
@@ -182,6 +234,15 @@ module.exports = async function (t) {
   await page.waitForFunction(() => BAUER.state().mown > 0, null, { timeout: 20000 });
   await page.mouse.up();
   t.check('Handy: Mähen-Knopf mäht', true);
+  await page.evaluate(() => { const c = BAUER.cart(); BAUER.teleport(c.x - Math.sin(c.rot) * 3.6, c.z - Math.cos(c.rot) * 3.6, c.rot); BAUER.input({ fwd: 1 }); });
+  await page.waitForFunction(() => BAUER.state().held, null, { timeout: 10000 });
+  await page.evaluate(() => BAUER.input(null));
+  t.check('Handy: Beim Schieben heißt der Knopf „Abstellen“', /Abstellen/.test(await page.textContent('#mow-btn')));
+  await page.waitForTimeout(400);
+  await t.shot(page, 'handy-schubkarren');
+  await page.locator('#mow-btn').click();
+  await page.waitForTimeout(200);
+  t.check('Handy: Knopf stellt den Schubkarren ab', !(await state(page)).held && /Mähen/.test(await page.textContent('#mow-btn')));
   await t.shot(page, 'handy-feld');
   const overlap = await page.evaluate(() => {
     const boxes = [...document.querySelectorAll('#hud .hud-box, #compass, #joy, #mow-btn')].filter(e => e.offsetParent).map(e => e.getBoundingClientRect());

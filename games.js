@@ -70,5 +70,12 @@ window.GAMES = [
     description: "Hilf Füchsin Tilda in ihrer Werkstatt: Erkenne Figuren und Körper, falte Würfelnetze, spiegle und zähle Kästchen.",
     age: "3. Klasse",
     subject: "Mathe"
+  },
+  {
+    id: "deutsch-wortmonster",
+    title: "Die Wortmonster",
+    description: "Füttere drei hungrige Monster mit Nomen, Verben und Adjektiven und übe für den Sprachkundetest.",
+    age: "3. Klasse",
+    subject: "Deutsch"
   }
 ];

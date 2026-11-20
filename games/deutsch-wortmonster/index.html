@@ -91,7 +91,7 @@ button:focus-visible,a:focus-visible,.mon:focus-visible{outline:4px solid var(--
 .mon.sel .mname{background:#ffe680}
 .bub{position:absolute;bottom:100%;left:50%;transform:translateX(-50%);background:#fff;border:3px solid var(--ink);border-radius:16px;
   padding:4px 10px;font-weight:700;font-size:15px;white-space:nowrap;z-index:5;pointer-events:none;animation:pop .25s}
-.bub::after{content:"";position:absolute;top:100%;left:50%;margin-left:-7px;border:7px solid transparent;border-top-color:var(--ink)}
+.bub::after{content:"";position:absolute;top:100%;left:calc(50% + var(--tail,0px));margin-left:-7px;border:7px solid transparent;border-top-color:var(--ink)}
 @keyframes pop{from{transform:translateX(-50%) scale(.3)}}
 .belly{height:14px;background:rgba(255,255,255,.6);border-radius:999px;overflow:hidden;border:2px solid #fff;max-width:420px;width:100%;margin:0 auto}
 .belly div{height:100%;width:0;background:linear-gradient(90deg,#ffd23f,#ff6f3c);border-radius:999px;transition:width .5s}
@@ -847,6 +847,11 @@ button:focus-visible,a:focus-visible,.mon:focus-visible{outline:4px solid var(--
     var el = monEl(m); if (!el) return;
     var old = el.querySelector('.bub'); if (old) old.remove();
     var b = document.createElement('div'); b.className = 'bub'; b.textContent = text; el.appendChild(b);
+    /* Sprechblase am Bildschirmrand nach innen schieben, sonst ragt sie hinaus (waagerechtes Scrollen) */
+    var r = el.getBoundingClientRect(), mid = r.left + r.width / 2, half = b.offsetWidth / 2;
+    var W = document.documentElement.clientWidth, dx = 0;
+    if (mid + half > W - 6) dx = W - 6 - (mid + half); else if (mid - half < 6) dx = 6 - (mid - half);
+    if (dx) { b.style.transform = 'translateX(calc(-50% + ' + Math.round(dx) + 'px))'; b.style.setProperty('--tail', Math.round(-dx) + 'px'); }
     clearTimeout(bubTimer[m]); bubTimer[m] = setTimeout(function () { b.remove(); }, 1600);
   }
   function anim(m, cls, ms) {

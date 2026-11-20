@@ -178,6 +178,31 @@ button:focus-visible,a:focus-visible,.mon:focus-visible{outline:4px solid var(--
 .confetti{position:fixed;top:-20px;width:10px;height:16px;z-index:40;pointer-events:none;animation:fall linear forwards}
 @keyframes fall{to{transform:translateY(110vh) rotate(720deg)}}
 
+.btn.reward{background:linear-gradient(90deg,#ffd23f,#ff9f1c);border-color:#f2a922;color:#4a2a00;box-shadow:0 4px 0 #c9800f;animation:wobble 1.6s ease-in-out infinite}
+@keyframes wobble{0%,100%{transform:rotate(0)}10%{transform:rotate(-2deg) scale(1.03)}20%{transform:rotate(2deg) scale(1.03)}30%{transform:rotate(0)}}
+.hint2{font-size:15px;opacity:.75;text-align:center;margin:10px 0 0}
+
+/* ---------- Belohnung: Snack-Regen ---------- */
+#snack{flex:1;display:flex;flex-direction:column;max-width:860px;width:100%;margin:0 auto}
+.sbox{position:relative;flex:1;min-height:360px;border-radius:24px;overflow:hidden;border:3px solid #fff;touch-action:none;user-select:none;-webkit-user-select:none;
+  background:linear-gradient(#bfe6ff,#e8f6ff 70%,#9fdc8a 70%,#6cc35a);box-shadow:0 8px 26px rgba(40,30,90,.25);cursor:pointer}
+#scv{position:absolute;inset:0;width:100%;height:100%;display:block}
+#smon{position:absolute;bottom:6px;left:0;width:clamp(90px,22vw,120px);pointer-events:none;will-change:transform}
+#smon .bub{font-size:14px}
+.shud{position:absolute;top:10px;left:12px;right:12px;display:flex;align-items:center;gap:10px;pointer-events:none}
+.shud .tbar{flex:1;height:14px;background:rgba(255,255,255,.7);border-radius:999px;overflow:hidden;border:2px solid #fff}
+.shud .tbar div{height:100%;width:100%;background:linear-gradient(90deg,#2fa84f,#ffd23f);border-radius:999px}
+.shud b{background:#fff;border-radius:999px;padding:4px 12px;font-size:20px;box-shadow:0 2px 8px rgba(0,0,0,.15)}
+.sover{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;text-align:center;padding:16px;
+  background:rgba(255,255,255,.55)}
+.sover .big{font-size:clamp(60px,16vw,110px);font-weight:700;color:var(--accent);text-shadow:0 4px 0 #fff;animation:pop2 .5s}
+@keyframes pop2{from{transform:scale(.3);opacity:0}}
+.sover h2{margin:0;font-size:clamp(22px,4vw,30px)}
+.sover p{margin:0;font-weight:700}
+.picks{display:flex;gap:12px;flex-wrap:wrap;justify-content:center}
+.picks button{width:110px;padding:8px;font:inherit;font-weight:700;font-size:17px;color:inherit;background:#fff;border:3px solid var(--line);border-radius:18px;cursor:pointer}
+.legend{font-size:16px;font-weight:700;background:#fff;border-radius:14px;padding:6px 12px}
+
 @media (max-width:560px){
   .card{padding:14px}.play{padding:12px 10px}
   #stage{min-height:100px;padding-top:30px}
@@ -234,9 +259,20 @@ button:focus-visible,a:focus-visible,.mon:focus-visible{outline:4px solid var(--
     </div>
   </section>
 
+  <section id="snack" hidden>
+    <div class="sbox" id="sbox">
+      <canvas id="scv"></canvas>
+      <div id="smon"></div>
+      <div class="shud"><div class="tbar"><div id="stime"></div></div><b id="sscore">0</b></div>
+      <div class="sover" id="sover"></div>
+    </div>
+  </section>
+
   <section class="card win" id="win" hidden>
     <div class="party" id="party"></div>
     <div id="winBox"></div>
+    <button class="btn reward" id="rewardBtn" type="button" hidden>🍭 Belohnung: Snack-Regen</button>
+    <p class="hint2" id="rewardHint" hidden>Löse eine neue Runde – dann gibt es wieder Snack-Regen! 🍭</p>
     <button class="btn main" id="againBtn" type="button">🔄 Nochmal spielen</button>
     <div class="row">
       <button class="btn" id="menuBtn" type="button">👾 Andere Monster</button>
@@ -757,14 +793,15 @@ button:focus-visible,a:focus-visible,.mon:focus-visible{outline:4px solid var(--
   /* ================= Spielzustand ================= */
   var $ = function (id) { return document.getElementById(id); };
   var state = { screen: 'start', area: null, list: [], i: 0, step: 0, err: 0, first: 0, streak: 0, results: [], fed: { n: 0, v: 0, a: 0 }, mute: false, busy: false };
-  var store = { best: {}, test: 0, mute: false };
-  function load() { try { var d = JSON.parse(localStorage.getItem(SAVE) || '{}'); store.best = d.best || {}; store.test = d.test || 0; store.mute = !!d.mute; } catch (e) {} state.mute = store.mute; }
+  var store = { best: {}, test: 0, snack: 0, mute: false };
+  function load() { try { var d = JSON.parse(localStorage.getItem(SAVE) || '{}'); store.best = d.best || {}; store.test = d.test || 0; store.snack = d.snack || 0; store.mute = !!d.mute; } catch (e) {} state.mute = store.mute; }
   function save() { try { localStorage.setItem(SAVE, JSON.stringify(store)); } catch (e) {} }
 
   function show(screen) {
     state.screen = screen;
-    ['start', 'game', 'win'].forEach(function (id) { $(id).hidden = id !== screen; });
-    $('bar').hidden = screen !== 'game';
+    ['start', 'game', 'win', 'snack'].forEach(function (id) { $(id).hidden = id !== screen; });
+    $('bar').hidden = screen !== 'game' && screen !== 'snack';
+    if (screen !== 'snack') stopSnack();
     window.scrollTo(0, 0);
   }
   function starsHtml(n) { var s = ''; for (var i = 0; i < 3; i++) s += i < n ? '⭐' : '<span class="off">⭐</span>'; return s; }
@@ -802,7 +839,7 @@ button:focus-visible,a:focus-visible,.mon:focus-visible{outline:4px solid var(--
     }
     growAll();
   }
-  function monEl(m) { return document.querySelector('#stage .mon[data-m="' + m + '"]'); }
+  function monEl(m) { return document.querySelector((state.screen === 'snack' ? '#smon' : '#stage') + ' .mon[data-m="' + m + '"]'); }
   function growAll() { ['n', 'v', 'a'].forEach(function (m) { var el = monEl(m); if (el) el.querySelector('.grow').style.transform = 'scale(' + (1 + Math.min(state.fed[m], 12) * 0.03) + ')'; }); }
   var bubTimer = {};
   function bubble(m, text) {
@@ -822,7 +859,7 @@ button:focus-visible,a:focus-visible,.mon:focus-visible{outline:4px solid var(--
     el.classList.add('eat');
     setTimeout(function () { el.classList.remove('eat'); anim(m, 'chew', 900); }, 260);
     SND.chomp();
-    bubble(m, text || pick(YUM));
+    if (text !== false) bubble(m, text || pick(YUM));
   }
   function yuck(m, text) { anim(m, 'yuck', 520); SND.bad(); bubble(m, text || 'Bäh!'); }
   /* Wort fliegt ins Maul des Monsters */
@@ -1135,8 +1172,11 @@ button:focus-visible,a:focus-visible,.mon:focus-visible{outline:4px solid var(--
         '<p>Du hast <b>' + pts + ' von ' + n + '</b> Happen gleich beim ersten Versuch richtig verfüttert.</p>' +
         '<p>' + (stars === 3 ? 'Rülps! Das war ein Festmahl! 🎉' : stars === 2 ? 'Lecker! Beim nächsten Mal schaffst du noch mehr.' : 'Gut gemacht! Übung macht den Meister.') + '</p>';
     }
+    state.reward = { secs: [15, 17, 20][stars - 1], mons: AREA[state.area].mons };
     save();
     $('winBox').innerHTML = html;
+    $('rewardBtn').hidden = false; $('rewardHint').hidden = true;
+    $('againBtn').textContent = '🔄 Nochmal spielen';
     $('party').innerHTML = ['n', 'v', 'a'].map(function (m) { return '<div>' + svgMon(m) + '</div>'; }).join('');
     [].forEach.call(document.querySelectorAll('#winBox [data-go]'), function (b) { b.addEventListener('click', function () { startArea(b.getAttribute('data-go')); }); });
     show('win');
@@ -1154,11 +1194,143 @@ button:focus-visible,a:focus-visible,.mon:focus-visible{outline:4px solid var(--
     }
   }
 
+  /* ---------- Belohnung: Snack-Regen ----------
+     Einmal pro fertiger Runde. Spielzeit nach Sternen: 15 / 17 / 20 Sekunden (wird vorher nicht angezeigt).
+     Snacks = 1 Punkt, goldener Stern = 5 Punkte, Stinkesocke = −3 Punkte. */
+  var SNACKS = ['🍎', '🍌', '🍓', '🍪', '🍩', '🍬', '🧁', '🍉', '🍒', '🥨'];
+  var SN = null;
+  function startSnack() {
+    if (!state.reward) return;
+    var r = state.reward; state.reward = null;
+    [].forEach.call(document.querySelectorAll('.confetti'), function (c) { c.remove(); });
+    SN = { secs: r.secs, m: null, score: 0, caught: 0, items: [], pops: [], el: 0, spawn: 0, x: 0, tx: 0, key: 0, run: false, raf: 0, last: 0 };
+    $('smon').innerHTML = ''; $('sscore').textContent = '0'; $('stime').style.width = '100%';
+    show('snack');
+    $('progress').textContent = '🍭 Snack-Regen';
+    sizeSnack();
+    if (r.mons.length === 1) pickSnack(r.mons[0]);
+    else {
+      $('sover').hidden = false;
+      $('sover').innerHTML = '<h2>Wen willst du füttern?</h2><div class="picks">' + r.mons.map(function (m) {
+        return '<button type="button" data-pick="' + m + '">' + svgMon(m) + MON[m].name + '</button>';
+      }).join('') + '</div>';
+      [].forEach.call(document.querySelectorAll('[data-pick]'), function (b) { b.addEventListener('click', function (e) { e.stopPropagation(); pickSnack(b.getAttribute('data-pick')); }); });
+    }
+  }
+  function pickSnack(m) {
+    SN.m = m;
+    $('smon').innerHTML = '<div class="mon" data-m="' + m + '"><div class="grow">' + svgMon(m) + '</div></div>';
+    var W = $('sbox').clientWidth; SN.x = SN.tx = W / 2; placeMon();
+    $('sover').hidden = false;
+    var n = 3;
+    var tick = function () {
+      if (!SN || state.screen !== 'snack') return;
+      if (n > 0) {
+        $('sover').innerHTML = '<div class="big">' + n + '</div><p class="legend">🍎 🍪 🍬 = 1 · ⭐ = 5 · 🧦 Socke = −3</p><p>Fang die Snacks!</p>';
+        tone(440, 0.12, 'triangle'); n--; SN.cd = setTimeout(tick, 700);
+      } else {
+        $('sover').innerHTML = '<div class="big">Los!</div>'; tone(880, 0.2, 'triangle');
+        SN.cd = setTimeout(function () { $('sover').hidden = true; }, 450);
+        SN.run = true; SN.last = 0; SN.raf = requestAnimationFrame(loopSnack);
+      }
+    };
+    tick();
+  }
+  function sizeSnack() {
+    var c = $('scv'), b = $('sbox'), d = window.devicePixelRatio || 1;
+    c.width = Math.round(b.clientWidth * d); c.height = Math.round(b.clientHeight * d);
+    c.getContext('2d').setTransform(d, 0, 0, d, 0, 0);
+  }
+  function placeMon() {
+    var w = $('smon').offsetWidth, W = $('sbox').clientWidth;
+    SN.x = Math.max(w / 2, Math.min(W - w / 2, SN.x));
+    $('smon').style.transform = 'translateX(' + (SN.x - w / 2) + 'px) scale(' + (1 + Math.min(SN.caught, 30) * 0.008) + ')';
+  }
+  function spawnSnack(kind, x) {
+    var W = $('sbox').clientWidth, r = Math.random();
+    kind = kind || (r < 0.07 ? 'star' : r < 0.25 ? 'sock' : 'snack');
+    var size = Math.max(34, Math.min(52, W * 0.075));
+    SN.items.push({ k: kind, e: kind === 'star' ? '⭐' : kind === 'sock' ? '🧦' : pick(SNACKS), x: x != null ? x : size / 2 + Math.random() * (W - size), y: -size,
+      v: ($('sbox').clientHeight * (0.32 + SN.el * 0.018)) * (0.85 + Math.random() * 0.3), s: size, rot: (Math.random() - 0.5) * 2 });
+  }
+  function loopSnack(ts) {
+    if (!SN || !SN.run) return;
+    if (document.hidden) { SN.last = 0; SN.raf = requestAnimationFrame(loopSnack); return; }
+    var dt = SN.last ? Math.min(0.05, (ts - SN.last) / 1000) : 0; SN.last = ts;
+    var box = $('sbox'), W = box.clientWidth, H = box.clientHeight, ctx = $('scv').getContext('2d');
+    SN.el += dt;
+    var left = Math.max(0, SN.secs - SN.el);
+    $('stime').style.width = (100 * left / SN.secs) + '%';
+    /* neue Snacks, mit der Zeit immer mehr */
+    SN.spawn -= dt;
+    if (SN.spawn <= 0) { spawnSnack(); SN.spawn = Math.max(0.33, 0.85 - SN.el * 0.03); }
+    /* Monster bewegen: zum Finger hin oder mit Pfeiltasten */
+    if (SN.key) SN.tx = SN.x + SN.key * 40;
+    var dx = SN.tx - SN.x, step = 900 * dt;
+    SN.x += Math.abs(dx) < step ? dx : step * Math.sign(dx);
+    placeMon();
+    var mw = $('smon').offsetWidth, mtop = H - 6 - mw * (1 + Math.min(SN.caught, 30) * 0.008);
+    ctx.clearRect(0, 0, W, H);
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    SN.items = SN.items.filter(function (it) {
+      it.y += it.v * dt;
+      if (it.y > mtop + mw * 0.25 && it.y < mtop + mw * 0.8 && Math.abs(it.x - SN.x) < mw * 0.45) { catchSnack(it); return false; }
+      if (it.y > H + it.s) return false;
+      ctx.save(); ctx.translate(it.x, it.y); ctx.rotate(Math.sin(SN.el * 3 + it.rot) * 0.25);
+      ctx.font = it.s + 'px "Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif';
+      ctx.fillText(it.e, 0, 0); ctx.restore();
+      return true;
+    });
+    /* kleine Punkte-Anzeigen */
+    ctx.font = 'bold 26px "Trebuchet MS",sans-serif';
+    SN.pops = SN.pops.filter(function (p) {
+      p.t += dt; if (p.t > 0.8) return false;
+      ctx.globalAlpha = 1 - p.t / 0.8; ctx.fillStyle = p.c; ctx.fillText(p.s, p.x, p.y - p.t * 60); ctx.globalAlpha = 1;
+      return true;
+    });
+    if (left <= 0) { finishSnack(); return; }
+    SN.raf = requestAnimationFrame(loopSnack);
+  }
+  function catchSnack(it) {
+    var pts = it.k === 'star' ? 5 : it.k === 'sock' ? -3 : 1;
+    SN.score = Math.max(0, SN.score + pts);
+    if (pts > 0) { SN.caught++; eat(SN.m, it.k === 'star' ? 'Wow! +5 ⭐' : (Math.random() < 0.3 ? pick(YUM) : false)); }
+    else yuck(SN.m, 'Bäh! Socke! 🧦');
+    SN.pops.push({ s: (pts > 0 ? '+' : '') + pts, x: it.x, y: it.y, t: 0, c: pts > 0 ? '#1d7a3a' : '#c0392b' });
+    $('sscore').textContent = SN.score;
+  }
+  function stopSnack() { if (SN) { SN.run = false; cancelAnimationFrame(SN.raf); clearTimeout(SN.cd); } }
+  function finishSnack() {
+    if (!SN) return;
+    stopSnack();
+    var rec = SN.score > store.snack;
+    if (rec) { store.snack = SN.score; save(); }
+    var m = SN.m || 'n';
+    $('winBox').innerHTML = '<h1>Mjam! 😋</h1><p><b>' + MON[m].name + ' hat ' + SN.score + ' Punkte erschnappt!</b></p>' +
+      '<p>' + (rec ? '🏆 Neuer Rekord!' : 'Rekord: ' + store.snack + ' Punkte') + '</p>';
+    $('party').innerHTML = '<div>' + svgMon(m) + '</div>';
+    $('rewardBtn').hidden = true; $('rewardHint').hidden = false;
+    $('againBtn').textContent = '🔄 Nochmal üben';
+    SN = null;
+    show('win');
+    confetti(); SND.win();
+  }
+  (function () {
+    var box = $('sbox');
+    function aim(e) { if (SN && SN.m) { var r = box.getBoundingClientRect(); SN.tx = e.clientX - r.left; SN.key = 0; } }
+    box.addEventListener('pointerdown', function (e) { aim(e); try { box.setPointerCapture(e.pointerId); } catch (x) {} });
+    box.addEventListener('pointermove', function (e) { if (e.pointerType === 'mouse' || e.buttons) aim(e); });
+    document.addEventListener('keydown', function (e) { if (SN && (e.key === 'ArrowLeft' || e.key === 'ArrowRight')) { SN.key = e.key === 'ArrowLeft' ? -1 : 1; e.preventDefault(); } });
+    document.addEventListener('keyup', function (e) { if (SN && (e.key === 'ArrowLeft' || e.key === 'ArrowRight')) SN.key = 0; });
+    window.addEventListener('resize', function () { if (state.screen === 'snack') sizeSnack(); });
+  })();
+
   /* ---------- Bedienung ---------- */
   [].forEach.call(document.querySelectorAll('[data-area]'), function (b) { b.addEventListener('click', function () { startArea(b.getAttribute('data-area')); }); });
   $('nextBtn').addEventListener('click', next);
   $('againBtn').addEventListener('click', function () { startArea(state.area); });
   $('menuBtn').addEventListener('click', renderStart);
+  $('rewardBtn').addEventListener('click', startSnack);
   $('mute').addEventListener('click', toggleMute);
   $('muteStart').addEventListener('click', toggleMute);
   document.addEventListener('keydown', function (e) {
@@ -1180,6 +1352,10 @@ button:focus-visible,a:focus-visible,.mon:focus-visible{outline:4px solid var(--
       state: function () { return state.screen; },
       task: function () { return cur(); },
       results: function () { return state.results; },
+      snack: function () { return SN ? { run: SN.run, score: SN.score, secs: SN.secs, m: SN.m, x: SN.x } : null; },
+      snackDrop: function (kind) { if (SN) spawnSnack(kind, SN.x); },
+      snackCalm: function () { if (SN) { SN.items = []; SN.spawn = 999; } },
+      snackFinish: function () { finishSnack(); },
       /* was gerade richtig wäre */
       solution: function () {
         var q = cur();

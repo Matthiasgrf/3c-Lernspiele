@@ -1576,7 +1576,7 @@ if (TEST) {
       held: cart.held, flying: flights.length, flowers: flowerCount, seen: Object.assign({}, seen),
       x: farmer.position.x, z: farmer.position.z, rot: farmer.rotation.y, grain: state.reduce((n, s) => n + (s === 1 ? 1 : 0), 0) }),
     stations: () => stations.map(s => ({ x: s.x, z: s.z, r: s.r, solved: s.solved })),
-    flowers: () => flowers.map(f => ({ x: f.x, z: f.z, got: f.got })),
+    flowers: () => flowers.map(f => ({ x: f.x, z: f.z, got: f.got, kind: f.kind })),
     animals: () => animals.map(a => ({ kind: a.kind, x: a.x, z: a.z, state: a.state })),
     cart: () => ({ x: cart.x, z: cart.z, rot: cart.rot, held: cart.held }),
     lying: () => lying.map(cellPos),

@@ -93,13 +93,31 @@ module.exports = async function (t) {
   });
   t.check('Im hohen Getreide läuft der Bauer langsamer', pace.grain > 0 && pace.grain < pace.stubble * 0.7, pace.grain.toFixed(1) + ' statt ' + pace.stubble.toFixed(1));
 
-  /* Blume pflücken und Tier aufscheuchen */
-  await page.evaluate(() => { const f = BAUER.flowers().find(f => !f.got); BAUER.teleport(f.x, f.z - 0.5, 0); });
-  await page.waitForFunction(() => BAUER.state().flowers >= 1, null, { timeout: 10000 });
-  t.check('Blume gepflückt, Zähler und Hinweis erscheinen', await page.textContent('#blumen') !== '0' && /Klatschmohn|Kornblume/.test(await page.textContent('#toast')));
-  await page.evaluate(() => { const a = BAUER.animals().find(a => a.state === 'hide'); BAUER.teleport(a.x, a.z - 1, 0); });
-  await page.waitForFunction(() => Object.keys(BAUER.state().seen).some(k => /hase|hamster|maus|lerche/.test(k)), null, { timeout: 10000 });
-  t.check('Tier huscht weg, Hinweis erscheint', /Feld(hase|hamster|maus|lerche)/.test(await page.textContent('#toast')));
+  /* Blume pflücken und Tier aufscheuchen. Ein Hinweis erscheint nur beim ersten Fund einer Sorte – beim Mähen
+     kann schon eine Blume oder ein Tier dabei gewesen sein. Darum eine noch neue Sorte wählen und alle Hinweise
+     mitschreiben (ein Tier-Hinweis kann den Blumen-Hinweis sofort überschreiben). */
+  await page.evaluate(() => {
+    window.__hinweise = [];
+    new MutationObserver(recs => recs.forEach(r => r.addedNodes.forEach(n => __hinweise.push(n.textContent))))
+      .observe(document.getElementById('toast'), { childList: true });
+  });
+  const hinweise = () => page.evaluate(() => __hinweise.join(' | '));
+  const blumenVorher = (await state(page)).flowers;
+  const blume = await page.evaluate(() => {
+    const seen = BAUER.state().seen, f = BAUER.flowers().find(f => !f.got && !seen[f.kind]);
+    if (f) BAUER.teleport(f.x, f.z - 0.5, 0);
+    return f ? f.kind : null;
+  });
+  if (blume) await page.waitForFunction(n => BAUER.state().flowers > n, blumenVorher, { timeout: 10000 });
+  t.check('Blume gepflückt, Zähler und Hinweis erscheinen', !!blume && Number(await page.textContent('#blumen')) > blumenVorher &&
+    (blume === 'mohn' ? /Klatschmohn/ : /Kornblume/).test(await hinweise()), blume || 'keine neue Blumensorte übrig');
+  const tier = await page.evaluate(() => {
+    const seen = BAUER.state().seen, a = BAUER.animals().find(a => a.state === 'hide' && !seen[a.kind]);
+    if (a) BAUER.teleport(a.x, a.z - 1, 0);
+    return a ? a.kind : null;
+  });
+  if (tier) await page.waitForFunction(k => BAUER.state().seen[k], tier, { timeout: 10000 });
+  t.check('Tier huscht weg, Hinweis erscheint', !!tier && new RegExp('Feld' + tier).test(await hinweise()), tier || 'keine neue Tierart übrig');
 
   /* Schubkarren: Bei 6 liegenden Garben mäht die Sense nicht weiter */
   await page.evaluate(() => { BAUER.teleport(-6, 10, 0); BAUER.speed(12); BAUER.input({ fwd: 1, mow: true }); });

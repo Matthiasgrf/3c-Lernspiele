@@ -19,6 +19,12 @@ Inhalte von vier Arbeitsblättern (wörtlich übernommen) plus weitere Wörter a
 - **Probetest**: 15 gemischte Aufgaben wie im Test, je ein Versuch, keine Tipps. Danach Punkte und
   Auswertung pro Bereich mit Knopf „Üben ▶“ für die Bereiche mit Fehlern.
 
+**Belohnung „Snack-Regen“**: Nach jeder fertigen Runde (10 Happen oder Probetest) gibt es einmal ein kurzes
+Fang-Spiel. Snacks fallen vom Himmel (1 Punkt), goldene Sterne bringen 5 Punkte, Stinkesocken kosten 3.
+Die Spielzeit hängt von den Sternen der Runde ab (15 / 17 / 20 Sekunden) und wird vorher nicht angezeigt.
+Nach dem Monster-Buffet und dem Probetest sucht sich das Kind sein Monster aus. Danach gibt es den
+Snack-Regen erst wieder nach der nächsten fertigen Runde. Steuerung: Finger oder Maus, Antippen, Pfeiltasten.
+
 Jeder Bereich hat 10 Happen, die Aufgaben werden jedes Mal neu gemischt. Sterne: 3 ab 9 von 10 beim
 ersten Versuch, 2 ab 6. Im Probetest 3 Sterne ab 13 von 15, 2 ab 9.
 
@@ -32,7 +38,7 @@ Wortes tippen. Läuft im Hoch- und Querformat.
 
 Hinweise:
 - Spielstand im Browser unter `deutsch_wortmonster_v1`: beste Sterne pro Bereich (`best`), beste Punktzahl
-  im Probetest (`test`), Ton aus (`mute`).
+  im Probetest (`test`), Rekord im Snack-Regen (`snack`), Ton aus (`mute`).
 - Monster, Grafik und Töne entstehen im Code, es werden keine Bilder oder fremden Dateien geladen.
 - Neue Wörter kommen in die Tabellen `NOMEN`, `VERBEN`, `ADJ`, `SAETZE`, `WORTGRUPPEN`, neue Aufgabenarten
   in `GEN` und in die Runden in `ROUNDS`.

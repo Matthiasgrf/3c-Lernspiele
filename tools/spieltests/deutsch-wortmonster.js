@@ -129,6 +129,30 @@ module.exports = async function (t) {
   const save = await page.evaluate(k => JSON.parse(localStorage.getItem(k)), SAVE);
   t.check('Speicherstand: 3 Sterne für Nomen', save.best.nomen === 3, JSON.stringify(save));
 
+  /* ---------- Belohnung Snack-Regen ---------- */
+  const reward = await page.textContent('#rewardBtn');
+  t.check('Belohnungsknopf sichtbar, ohne Zeitangabe', (await page.isVisible('#rewardBtn')) && !/\d/.test(reward), reward);
+  await page.click('#rewardBtn');
+  await page.waitForFunction(() => WORTMONSTER.snack() && WORTMONSTER.snack().run, null, { timeout: 6000 });
+  const sn = await page.evaluate(() => WORTMONSTER.snack());
+  t.check('Snack-Regen: Nomi, 20 Sekunden bei 3 Sternen', sn.m === 'n' && sn.secs === 20, JSON.stringify(sn));
+  t.check('Snack-Regen: Link „Alle Spiele“ sichtbar', await homeVisible(page));
+  const box = await page.locator('#sbox').boundingBox();
+  await page.mouse.move(box.x + box.width * 0.2, box.y + box.height / 2);
+  await page.waitForTimeout(600);
+  const x1 = await page.evaluate(() => WORTMONSTER.snack().x);
+  t.check('Monster folgt der Maus', Math.abs(x1 - box.width * 0.2) < 70, Math.round(x1) + ' / ' + Math.round(box.width * 0.2));
+  await page.evaluate(() => { WORTMONSTER.snackCalm(); for (let i = 0; i < 3; i++) WORTMONSTER.snackDrop('snack'); WORTMONSTER.snackDrop('star'); });
+  await page.waitForFunction(() => WORTMONSTER.snack().score >= 8, null, { timeout: 7000 }).catch(() => {});
+  const sc = await page.evaluate(() => WORTMONSTER.snack().score);
+  t.check('Snacks fangen gibt Punkte', sc >= 8, sc + ' Punkte');
+  await t.shot(page, 'snackregen-computer');
+  await page.evaluate(() => WORTMONSTER.snackFinish());
+  const snText = await page.textContent('#win');
+  t.check('Snack-Ergebnis mit Rekord', snText.includes('Punkte erschnappt') && snText.includes('Rekord'), snText.slice(0, 100));
+  t.check('Belohnung nur einmal pro Runde', (await page.isHidden('#rewardBtn')) && (await page.isVisible('#rewardHint')));
+  t.check('Rekord gespeichert', (await page.evaluate(k => JSON.parse(localStorage.getItem(k)).snack, SAVE)) >= 5);
+
   /* ---------- Monster-Buffet: Ziehen mit der Maus, Wörterschlange ---------- */
   await page.click('#menuBtn');
   await page.click('[data-area="mix"]');
@@ -174,6 +198,27 @@ module.exports = async function (t) {
   await phone.waitForTimeout(1200);
   await t.shot(phone, 'handy-auswertung');
   t.check('Handy: kein waagerechtes Scrollen', !overflow);
+  await phone.tap('#rewardBtn');
+  t.check('Handy: nach dem Probetest Monster aussuchen', (await phone.locator('[data-pick]').count()) === 3);
+  await phone.tap('[data-pick="a"]');
+  await phone.waitForFunction(() => WORTMONSTER.snack() && WORTMONSTER.snack().run, null, { timeout: 6000 });
+  t.check('Handy: Ada im Snack-Regen, 20 Sekunden', await phone.evaluate(() => WORTMONSTER.snack().m === 'a' && WORTMONSTER.snack().secs === 20));
+  const pb = await phone.locator('#sbox').boundingBox();
+  await phone.touchscreen.tap(pb.x + pb.width * 0.8, pb.y + pb.height * 0.6);
+  await phone.waitForTimeout(800);
+  t.check('Handy: Antippen bewegt das Monster', await phone.evaluate(w => WORTMONSTER.snack().x > w * 0.6, pb.width));
+  t.check('Handy: Snack-Regen ohne waagerechtes Scrollen', await phone.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1));
+  await t.shot(phone, 'handy-snackregen');
+  await phone.evaluate(() => WORTMONSTER.snackFinish());
+  await t.shot(phone, 'handy-snackende');
+  await phone.goto(t.url + '?test', { waitUntil: 'load' });
+  await phone.waitForFunction(() => window.WORTMONSTER && WORTMONSTER.state() === 'start');
+  await phone.tap('[data-area="test"]');
+  for (let i = 0; i < 15; i++) {
+    if (i === 0) { await wrong(phone, true); await phone.waitForTimeout(1000); }
+    await solve(phone, { touch: true });
+    await phone.tap('#nextBtn');
+  }
   await phone.tap('#winBox [data-go="nomen"]');
   t.check('Üben-Knopf startet den Bereich Nomen', (await phone.textContent('#kicker')) === 'Nomen & Artikel');
 };

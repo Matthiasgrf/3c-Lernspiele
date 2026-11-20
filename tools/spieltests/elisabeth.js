@@ -14,6 +14,16 @@ module.exports = async function (t) {
   };
   const homeVisible = page => page.evaluate(() => [...document.querySelectorAll('a[href="../../"]')].some(a => a.offsetParent !== null));
   const quizOpen = page => page.evaluate(() => document.getElementById('quiz-modal').style.display === 'block');
+  /* Anzeige oben (Rosen-Punkte, Stationen) ganz auf dem Bildschirm und nicht über dem Link zur Übersicht */
+  const hudVisible = page => page.evaluate(() => {
+    const home = document.getElementById('home-link').getBoundingClientRect();
+    return [...document.querySelectorAll('.hud-box')].every(b => {
+      const r = b.getBoundingClientRect();
+      const overHome = r.left < home.right && r.right > home.left && r.top < home.bottom && r.bottom > home.top;
+      return r.left >= 0 && r.right <= innerWidth && !overHome;
+    });
+  });
+  const setHud = (page, n) => page.evaluate(n => { document.getElementById('score').textContent = n; document.getElementById('progress').textContent = n; }, n);
 
   const page = await open(DESK);
   const stations = await page.evaluate(() => ELISABETH.stations.map(s => ({
@@ -77,4 +87,13 @@ module.exports = async function (t) {
   const fits = await phone.evaluate(() => { const r = document.getElementById('quiz-modal').getBoundingClientRect(); return r.left >= 0 && r.right <= innerWidth; });
   t.check('Handy: Quiz-Fenster passt in die Breite', fits);
   await t.shot(phone, 'handy-werke');
+
+  /* Handy: Anzeige oben ganz sichtbar, auch auf schmalen Handys (360 px) und mit zweistelligen Zahlen */
+  t.check('Handy: Anzeige oben ganz sichtbar', await hudVisible(phone));
+  const small = await open({ viewport: { width: 360, height: 740 }, isMobile: true, hasTouch: true });
+  await small.click('#start-modal .action-btn');
+  t.check('Handy 360 px: Anzeige oben ganz sichtbar', await hudVisible(small));
+  await setHud(small, '20');
+  t.check('Handy 360 px: Anzeige oben ganz sichtbar bei 20 / 20', await hudVisible(small));
+  await t.shot(small, 'handy-360');
 };

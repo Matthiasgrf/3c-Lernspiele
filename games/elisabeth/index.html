@@ -37,8 +37,14 @@
             justify-content: space-between;
             align-items: center;
             gap: 8px;
+            /* passt es nicht in eine Zeile, rutscht die zweite Anzeige darunter, statt abgeschnitten zu werden */
+            flex-wrap: wrap;
+            row-gap: 6px;
             pointer-events: none;
             z-index: 5;
+        }
+        #hud .hud-box:last-child {
+            margin-left: auto;
         }
         .hud-box {
             background: rgba(255, 255, 255, 0.94);
@@ -247,6 +253,21 @@
                 right: 12px;
                 transform: none;
                 max-width: calc(100vw - 210px);
+            }
+        }
+        /* schmale Handys (360–420 px): Anzeige oben passt in eine Zeile, auch bei „20 / 20“ */
+        @media (max-width: 420px) {
+            #hud {
+                left: 8px;
+                right: 8px;
+                gap: 6px;
+            }
+            .hud-box {
+                font-size: 0.82rem;
+                padding: 6px 8px;
+            }
+            #home-link {
+                left: 8px;
             }
         }
     </style>

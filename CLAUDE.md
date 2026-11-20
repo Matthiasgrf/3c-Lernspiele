@@ -11,6 +11,7 @@ index.html                 Startseite (Kacheln, Fach-Filter), liest games.js
 games.js                   Liste aller Spiele – einzige Datei, die die Startseite steuert
 404.html                   Seite für falsche Adressen
 assets/                    Design und Skript der Startseite
+assets/zoom-schutz.js      verhindert versehentliches Zoomen auf Handy/Tablet, in jedes Spiel einbinden
 assets/vendor/             gemeinsam genutzte Bibliotheken (Three.js r128)
 games/<ordner>/            ein Ordner pro Spiel
   index.html               das Spiel, eigenständig in einer Datei
@@ -45,6 +46,10 @@ in `tools/check.js` ergänzen statt nur hier aufzuschreiben.
 3. **Link zurück zur Übersicht** (`href="../../"`, Text „🏠 Alle Spiele“) an drei Stellen:
    Start-Bildschirm, während des Spiels (gut sichtbar, darf Steuerung nicht verdecken), End-/Gewinn-Bildschirm.
 4. **Pfade** nur relativ (kein führendes `/`). Speicherstand nur mit eigenem `localStorage`-Schlüssel pro Spiel.
+   **Zoom-Schutz**: viewport-Tag mit `maximum-scale=1,user-scalable=no` und im `<head>`
+   `<script src="../../assets/zoom-schutz.js"></script>` – sonst zoomen Kinder auf dem Handy aus Versehen
+   und kommen nicht mehr auf 100 % zurück (iPhone ignoriert `user-scalable=no` allein). Zählt nicht als
+   inhaltliche Änderung.
 5. **Keine fremden Server**: Skripte, Schriften und Bilder von CDNs durch lokale Dateien ersetzen.
    Three.js r128 liegt in `assets/vendor/three-r128.min.js` (einbinden mit `../../assets/vendor/…`).
    Andere Bibliotheken über `npm pack <name>@<version>` holen, mit Version im Dateinamen und Lizenzdatei

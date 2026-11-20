@@ -48,6 +48,10 @@ function checkGameHtml(id, dir, html) {
 
   if (!/<html[^>]*\blang=["']de/i.test(html)) warn(where, '<html lang="de"> fehlt.');
   if (!/<meta[^>]+name=["']viewport["']/i.test(html)) err(where, 'viewport-Meta-Tag fehlt (wichtig für Handy und Tablet).');
+  /* Zoom-Schutz: sonst zoomen Kinder auf dem Handy aus Versehen und kommen nicht mehr zurück. */
+  const viewport = (/<meta[^>]+name=["']viewport["'][^>]*>/i.exec(html) || [''])[0];
+  if (viewport && !/user-scalable\s*=\s*no/i.test(viewport)) err(where, 'viewport-Meta-Tag braucht "maximum-scale=1,user-scalable=no" (Zoom-Schutz).');
+  if (!/<script[^>]+src=["']\.\.\/\.\.\/assets\/zoom-schutz\.js["']/i.test(html)) err(where, 'Zoom-Schutz fehlt: <script src="../../assets/zoom-schutz.js"></script> im <head> einbinden.');
   if (!/<title>\s*\S/i.test(html)) warn(where, '<title> fehlt oder ist leer.');
 
   if (!/href\s*=\s*\\?["']\.\.\/\.\.\/\\?["']/.test(html)) err(where, 'Link zurück zur Übersicht (href="../../") fehlt.');

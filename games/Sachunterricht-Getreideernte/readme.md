@@ -30,6 +30,10 @@ Getreidepflanze, Lückentext, Rätsel, Wachstum im Jahreslauf, Arbeit früher un
 - Speicherstand in `localStorage` unter `sachunterricht_getreideernte_v1`: gelöste Stationen,
   gemähte Felder, liegende Garben, Schubkarren (Ort, Ladung), Garben auf dem Hof, Blumen und Standort.
   „Neu anfangen“ und „Nochmal spielen“ löschen ihn.
+- Sterne und Rekord: Wer eine Station beim ersten Prüfen ganz richtig löst, bekommt einen ⭐
+  (Anzeige oben „Stationen 3 / 10 · ⭐ 2“). Welche Stationen schon einmal falsch waren, steht im Speicherstand (`miss`).
+  Der Rekord (meiste Sterne in einer Runde) liegt unter `sachunterricht_getreideernte_rekord` und bleibt auch nach
+  „Neu anfangen“ erhalten. Er steht auf dem Start- und dem Gewinn-Bildschirm.
 - Three.js wird aus `assets/vendor/` geladen, das Spiel braucht keine fremden Server.
 - Mit `?test` in der Adresse gibt es `window.BAUER` für den Durchspiel-Test
   (`tools/spieltests/Sachunterricht-Getreideernte.js`).

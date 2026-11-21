@@ -8,7 +8,8 @@ roten Kugel (Hauptstadt) landen. Nach der Landung gibt es Fragen zum Land:
 3. Welche Sehenswürdigkeit gibt es dort?
 4. Wie viele Menschen leben ungefähr im Land?
 
-Wer alle Länder besucht hat, wird „Europa-Meister“. Der Spielstand wird im Browser gespeichert (`europaflug_v1`).
+Wer alle Länder besucht hat, wird „Europa-Meister“. Der Spielstand wird im Browser gespeichert (`europaflug_v1`). Dazu kommt ein Rekord: der höchste Punktestand (⭐) einer Runde.
+Er bleibt bei „Neu starten“ und „Nochmal spielen“ erhalten und steht auf dem Start- und dem Gewinn-Bildschirm.
 
 Steuerung: Pfeiltasten oder A/D zum Lenken, W schneller, Leertaste landen.
 Auf Tablet/Handy: ◀ ▶ gedrückt halten, 🚀 schneller, Landen-Button antippen.

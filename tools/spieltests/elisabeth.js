@@ -73,10 +73,17 @@ module.exports = async function (t) {
     await page.waitForFunction(() => document.getElementById('quiz-modal').style.display === 'none', null, { timeout: 5000 });
   }
   await page.waitForFunction(() => document.getElementById('end-modal').style.display === 'block', null, { timeout: 5000 });
-  t.check('Gewinn-Bildschirm nach allen Stationen', (await page.textContent('#final-score-text')).includes('20 von 20'));
+  /* Rosen-Punkte nur für Stationen ohne Fehler: falsch geantwortet wurde an Station 1 und an allen mehrteiligen */
+  const fehlerfrei = stations.filter((s, i) => i > 0 && s.steps.length === 1).length;
+  t.check('Gewinn-Bildschirm nach allen Stationen', (await page.textContent('#final-score-text')).includes(`gemeistert und ${fehlerfrei} von 20`), await page.textContent('#final-score-text'));
+  t.check('Rosen-Punkte oben', (await page.textContent('#score')) === String(fehlerfrei));
+  t.check('Gewinn-Bildschirm: neuer Rekord', (await page.textContent('#final-rekord')).includes('Neuer Rekord'));
+  t.check('Rekord gespeichert', (await page.evaluate(() => localStorage.getItem('elisabeth_rekord'))) === String(fehlerfrei));
   t.check('Gewinn-Bildschirm: Link zur Übersicht', await homeVisible(page));
   t.check('Gewinn-Bildschirm: Nochmal spielen', await page.isVisible('#end-modal button'));
   await t.shot(page, 'gewonnen');
+  await page.reload({ waitUntil: 'load' });
+  t.check('Start-Bildschirm zeigt Rekord', (await page.textContent('#start-rekord')).includes(`Rekord: ${fehlerfrei} von 20`));
   await page.close();
 
   /* Handy: mehrteilige Station passt auf den Bildschirm */

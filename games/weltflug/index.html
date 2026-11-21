@@ -52,6 +52,7 @@ html,body{margin:0;height:100%;overflow:hidden;font-family:"Trebuchet MS","Segoe
 .flagopt img{height:72px;width:96px;border:1px solid #bbb;border-radius:4px;pointer-events:none}
 .fb{min-height:28px;font-size:18px;font-weight:800;margin-top:4px}
 .stars{font-size:44px;letter-spacing:4px}
+.rekord{font-weight:800;color:#b45309;font-size:17px}
 #ov .bwcard p.bwwhere{font-size:15px;opacity:.8}
 #ov .bwcard p.bwinfo{font-size:18px;text-align:left;background:#fff6e0;border-radius:14px;padding:10px 14px}
 #loading{position:fixed;inset:0;z-index:30;display:flex;align-items:center;justify-content:center;font-size:24px;font-weight:800;background:linear-gradient(#69b9ee,#d6ecfb);text-align:center;padding:20px}
@@ -338,10 +339,11 @@ Object.keys(GEO.g).forEach(function(code){
 });
 
 /* ---------- Spielzustand ---------- */
+var rekord=0,rekordNeu=false;/* Rekord: höchster Punktestand; rekordNeu = in dieser Runde übertroffen */
 var state='loading',score=0,visited={},target=null,curPin=null,lockId=null,muted=false;
 var SAVE='weltflug_v1';
-function load(){try{var s=JSON.parse(localStorage.getItem(SAVE)||'null');if(s){visited=s.visited||{};score=s.score||0;Object.keys(visited).forEach(function(k){if(!BYID[k])delete visited[k];});bwSeen={};Object.keys(s.bw||{}).forEach(function(k){if(BWBY[k])bwSeen[k]=1;});}}catch(e){}}
-function save(){try{localStorage.setItem(SAVE,JSON.stringify({visited:visited,score:score,bw:bwSeen}));}catch(e){}}
+function load(){try{var s=JSON.parse(localStorage.getItem(SAVE)||'null');if(s){visited=s.visited||{};score=s.score||0;rekord=s.rekord||0;rekordNeu=!!s.rekordNeu;if(score>rekord){rekord=score;rekordNeu=true;}Object.keys(visited).forEach(function(k){if(!BYID[k])delete visited[k];});bwSeen={};Object.keys(s.bw||{}).forEach(function(k){if(BWBY[k])bwSeen[k]=1;});}}catch(e){}}
+function save(){if(score>rekord){rekord=score;rekordNeu=true;}try{localStorage.setItem(SAVE,JSON.stringify({visited:visited,score:score,rekord:rekord,rekordNeu:rekordNeu,bw:bwSeen}));}catch(e){}}
 function visitedCount(){return Object.keys(visited).length;}
 function shuffle(a){a=a.slice();for(var i=a.length-1;i>0;i--){var j=Math.floor(Math.random()*(i+1));var t=a[i];a[i]=a[j];a[j]=t;}return a;}
 
@@ -1202,10 +1204,10 @@ function openQuiz(c,qs){
 function showWin(){
   state='win';
   var ov=$('ov');ov.classList.remove('hidden');
-  ov.innerHTML='<div class="card"><div style="font-size:70px">🏆</div><h1>Du bist Welt-Meister!</h1><p>Du hast alle '+NC+' Länder der Welt besucht und ihre Hauptstädte gelernt.</p><p class="stars">⭐ '+score+'</p></div>';
+  ov.innerHTML='<div class="card"><div style="font-size:70px">🏆</div><h1>Du bist Welt-Meister!</h1><p>Du hast alle '+NC+' Länder der Welt besucht und ihre Hauptstädte gelernt.</p><p class="stars">⭐ '+score+'</p><p class="rekord">'+(rekordNeu?'🏆 Neuer Rekord!':'🏆 Rekord: ⭐ '+rekord)+'</p></div>';
   var card=ov.firstChild;
   var b=document.createElement('button');b.className='btn';b.textContent='Nochmal spielen';
-  b.addEventListener('click',function(){visited={};bwSeen={};refreshBW();score=0;save();updateScore();ov.classList.add('hidden');chooseTarget(false);refreshPins();state='fly';});
+  b.addEventListener('click',function(){visited={};bwSeen={};refreshBW();score=0;rekordNeu=false;save();updateScore();ov.classList.add('hidden');chooseTarget(false);refreshPins();state='fly';});
   card.appendChild(b);
   var home=document.createElement('a');home.className='btn alt';home.href='../../';home.textContent='🏠 Alle Spiele';home.style.textDecoration='none';card.appendChild(home);
   tone([523,659,784,1047,1319]);
@@ -1219,10 +1221,10 @@ function showStart(){
    '<p>Flieg mit dem Flugzeug um die ganze Welt! Folge dem <b>orangen Pfeil</b> zum Ziel-Land, lande bei der <b>gelben Kugel</b> (Hauptstadt) und beantworte die Fragen.</p>'+
    '<p>🏛️ Unterwegs warten <b>'+BW.length+' berühmte Bauwerke</b> – zum Beispiel der Eiffelturm. Lande beim <b>goldenen Ring</b> daneben und erfahre etwas darüber!</p>'+
    '<p>Es gibt <b>'+NC+' Länder</b> auf 6 Kontinenten. Dein Spielstand wird gespeichert – du kannst jederzeit weiterspielen.</p>'+
-   '<p class="small">📱 Handy: ◀ ▶ gedrückt halten, 🚀 = schneller<br>💻 Computer: Pfeiltasten oder A/D · W = schneller · S = langsamer · Leertaste = landen</p></div>';
+   '<p class="small">📱 Handy: ◀ ▶ gedrückt halten, 🚀 = schneller<br>💻 Computer: Pfeiltasten oder A/D · W = schneller · S = langsamer · Leertaste = landen</p>'+(rekord>0?'<p class="rekord">🏆 Dein Rekord: ⭐ '+rekord+'</p>':'')+'</div>';
   var card=ov.firstChild;
   function go(reset){
-    if(reset){visited={};bwSeen={};refreshBW();score=0;save();}
+    if(reset){visited={};bwSeen={};refreshBW();score=0;rekordNeu=false;save();}
     ov.classList.add('hidden');
     ['mission','score','mini','bM','bN','bH','bL','bR','bB'].forEach(function(id){$(id).classList.remove('hidden');});
     updateScore();chooseTarget(false);refreshPins();state='fly';

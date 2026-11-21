@@ -16,4 +16,8 @@ Manche Stationen haben mehrere Fragen nacheinander („Frage 2 / 6“, Knopf „
 
 Steuerung: Pfeiltasten / WASD, Klick bzw. Tippen auf die Wiese oder Steuerkreuz auf dem Handy.
 
+Rosen-Punkte und Rekord: Einen 🌹 Rosen-Punkt gibt es für jede Station, die ohne falsche Antwort gelöst wird.
+Der Rekord (meiste Rosen-Punkte in einer Runde) wird in `localStorage` unter `elisabeth_rekord` gespeichert
+und auf dem Start- und dem End-Bildschirm angezeigt.
+
 Durchspiel-Test: `node tools/spieltest.js elisabeth`

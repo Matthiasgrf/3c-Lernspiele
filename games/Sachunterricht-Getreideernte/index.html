@@ -125,7 +125,7 @@ table.work-table th { background: #fef3c7; color: #78350f; }
 <!-- Anzeigen während des Spiels -->
 <div id="hud" class="hidden">
   <a class="hud-box home-link" href="../../">🏠 Alle Spiele</a>
-  <div class="hud-box">📍 Stationen <span id="score">0</span> / 10</div>
+  <div class="hud-box">📍 Stationen <span id="score">0</span> / 10 · ⭐ <span id="stars">0</span></div>
   <div class="hud-box">🌾 Karren <span id="karre">0</span>/<span id="karre-max">6</span> · 🏡 <span id="garben">0</span></div>
   <div class="hud-box">🌺 Blumen <span id="blumen">0</span> / <span id="blumen-max">24</span></div>
 </div>
@@ -144,6 +144,7 @@ table.work-table th { background: #fef3c7; color: #78350f; }
     <h1>🌾 Bauer Franz und die Getreideernte</h1>
     <p>Hilf Bauer Franz bei der Ernte wie früher! Mähe dir mit der Sense einen Weg durch das Feld. Lade die Garben in den Schubkarren und fahre sie zum Bauernhof. An 10 Stationen warten Aufgaben rund ums Getreide.</p>
     <p id="start-controls"></p>
+    <p id="start-rekord" class="hidden" style="font-weight:bold; color:#b45309;"></p>
     <p id="start-error" class="hidden" style="color:#b91c1c; font-weight:bold;">Dein Gerät kann die 3D-Ansicht leider nicht zeigen.</p>
     <button type="button" class="big-btn main" id="startBtn">▶ Los geht's!</button>
     <button type="button" class="big-btn hidden" id="resetBtn">🔄 Neu anfangen</button>
@@ -197,6 +198,8 @@ table.work-table th { background: #fef3c7; color: #78350f; }
     <h1 style="color:#15803d;">🏆 Alle 10 Stationen geschafft!</h1>
     <p>Du hast alle Bilder beschriftet, den Lückentext gelöst und das Getreide-Rätsel gemeistert. Die Garben fahren zur Mühle, und aus dem Mehl wird ein frisches Brot!</p>
     <p id="win-stats" style="font-weight:bold; color:#78350f;"></p>
+    <p id="win-stars" style="font-weight:bold;"></p>
+    <p id="win-rekord" style="font-weight:bold; color:#b45309;"></p>
     <button type="button" class="big-btn main" id="againBtn">🔄 Nochmal spielen</button>
     <button type="button" class="big-btn" id="moreBtn">🌾 Weiter mähen</button>
     <a class="big-btn" href="../../">🏠 Alle Spiele</a>
@@ -210,6 +213,8 @@ table.work-table th { background: #fef3c7; color: #78350f; }
 
 /* Eigener Schlüssel für den Speicherstand dieses Spiels. */
 const SAVE = 'sachunterricht_getreideernte_v1';
+/* Rekord (meiste Sterne in einer Runde) bleibt auch nach „Neu anfangen“ erhalten. */
+const REKORD = 'sachunterricht_getreideernte_rekord';
 const TEST = /[?&]test\b/.test(location.search);
 const $ = id => document.getElementById(id);
 const show = (id, on) => $(id).classList.toggle('hidden', !on);
@@ -519,10 +524,14 @@ function checkCurrentStation() {
     show('tip-btn', false); show('check-btn', false); show('mode-btn', false); show('next-btn', true);
     fields.forEach(f => { f.disabled = true; });
     document.querySelectorAll('#q-body .chip').forEach(c => { c.disabled = true; });
-    if (!currentStation.solved) markSolved(currentStation, true);
+    if (!currentStation.solved) {
+      markSolved(currentStation, true);
+      if (!currentStation.miss) fb.textContent += " ⭐ Beim ersten Versuch – du bekommst einen Stern!";
+    }
     $('next-btn').focus();
   } else {
     fb.style.color = "#b91c1c";
+    if (!currentStation.solved && !currentStation.miss) { currentStation.miss = true; dirty = true; save(); }
     fb.textContent = `Fast! Du hast ${correctCount} von ${fields.length} richtig. Schau dir die roten Felder noch einmal an!`;
   }
 }
@@ -547,6 +556,7 @@ $('start-controls').textContent = isTouch
 function loadSave() {
   try { const s = JSON.parse(localStorage.getItem(SAVE)); return s && s.v === 1 ? s : null; } catch (e) { return null; }
 }
+function loadRekord() { try { return Math.max(0, parseInt(localStorage.getItem(REKORD), 10) || 0); } catch (e) { return 0; } }
 function resetSave() { try { localStorage.removeItem(SAVE); } catch (e) {} }
 
 /* ---------- 3D-Welt ---------- */
@@ -1221,9 +1231,12 @@ function mowCell(idx) {
   dirty = true;
 }
 
+/* Stern: Station beim ersten Prüfen ganz richtig */
+function starCount() { return stations.filter(s => s.solved && !s.miss).length; }
 function markSolved(st, fresh) {
   st.solved = true; solvedCount++;
   $('score').textContent = solvedCount;
+  $('stars').textContent = starCount();
   st.beacon.material.color.setHex(0x22c55e); st.beacon.material.opacity = 0.16;
   st.sprite.material.map = badgeTexture('✓', '#16a34a');
   if (fresh) { dirty = true; save(); }
@@ -1235,7 +1248,7 @@ function save() {
   for (let i = 0; i < CELLS; i++) if (state[i] === 2) bytes[i >> 3] |= 1 << (i & 7);
   let bin = ''; bytes.forEach(b => { bin += String.fromCharCode(b); });
   const data = {
-    v: 1, solved: stations.map(s => s.solved ? 1 : 0), mown: btoa(bin), sheaves: lying, batch, load, hof: farmCount,
+    v: 1, solved: stations.map(s => s.solved ? 1 : 0), miss: stations.map(s => s.miss ? 1 : 0), mown: btoa(bin), sheaves: lying, batch, load, hof: farmCount,
     karre: { x: +cart.x.toFixed(2), z: +cart.z.toFixed(2), rot: +cart.rot.toFixed(3), held: cart.held },
     flowers: flowers.map((f, i) => f.got ? i : -1).filter(i => i >= 0), seen,
     x: +farmer.position.x.toFixed(2), z: +farmer.position.z.toFixed(2), rot: +farmer.rotation.y.toFixed(3)
@@ -1258,6 +1271,7 @@ function applySave(s) {
     }
     (s.flowers || []).forEach(i => { if (flowers[i]) collectFlower(flowers[i], true); });
     Object.assign(seen, s.seen || {});
+    (s.miss || []).forEach((v, i) => { if (v && stations[i]) stations[i].miss = true; });
     (s.solved || []).forEach((v, i) => { if (v && stations[i]) markSolved(stations[i], false); });
     if (isFinite(s.x) && isFinite(s.z)) { farmer.position.set(s.x, 0, s.z); farmer.rotation.y = +s.rot || 0; }
   } catch (e) {}
@@ -1270,6 +1284,10 @@ animals.forEach(hideAnimal);
 drawLying(); drawFarm(); showLoad(); updateCounters();
 if (cart.held) { grabCart(); hintGrab = false; dirty = false; }
 placeCart();
+if (loadRekord() > 0) {
+  $('start-rekord').textContent = `🏆 Dein Rekord: ${loadRekord()} von ${stations.length} Sternen`;
+  show('start-rekord', true);
+}
 if (saved && (solvedCount > 0 || mownCount > 0 || farmCount > 0)) {
   $('startBtn').textContent = '▶ Weiterspielen';
   show('resetBtn', true);
@@ -1349,6 +1367,10 @@ function showWin() {
   mode = 'win'; winShown = true;
   setPlayUi(false);
   const kinds = Object.keys(ANIMALS).filter(k => seen[k]).length;
+  const stars = starCount(), old = loadRekord(), neu = stars > old;
+  if (neu) { try { localStorage.setItem(REKORD, String(stars)); } catch (e) {} }
+  $('win-stars').textContent = `⭐ ${stars} von ${stations.length} Stationen beim ersten Versuch richtig`;
+  $('win-rekord').textContent = neu ? '🏆 Neuer Rekord!' : `🏆 Dein Rekord: ${old} von ${stations.length} Sternen`;
   $('win-stats').textContent = `🌾 ${farmCount} Garben auf den Hof gebracht · 🌺 ${flowerCount} von ${flowers.length} Blumen gepflückt · 🐾 ${kinds} von 4 Tierarten entdeckt`;
   show('win-screen', true);
   save();

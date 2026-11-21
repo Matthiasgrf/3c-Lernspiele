@@ -199,10 +199,16 @@ module.exports = async function (t) {
   t.check('Gewinn-Bildschirm mit „Nochmal spielen“ und „Alle Spiele“', await page.locator('#win-screen').isVisible() &&
     await page.locator('#againBtn').isVisible() && await page.locator('#win-screen a[href="../../"]').isVisible() &&
     /6 Garben auf den Hof gebracht/.test(await page.textContent('#win-stats')) && await page.textContent('#score') === '10');
+  /* Sterne: Station 1 war erst falsch, die anderen 9 beim ersten Versuch richtig */
+  t.check('Sterne und neuer Rekord auf dem Gewinn-Bildschirm', await page.textContent('#stars') === '9' &&
+    /9 von 10 Stationen beim ersten Versuch/.test(await page.textContent('#win-stars')) && /Neuer Rekord/.test(await page.textContent('#win-rekord')),
+    await page.textContent('#win-stars') + ' ' + await page.textContent('#win-rekord'));
+  t.check('Rekord gespeichert', await page.evaluate(() => localStorage.getItem('sachunterricht_getreideernte_rekord')) === '9');
   await t.shot(page, 'gewonnen');
 
   /* Speicherstand: neu laden, weiterspielen */
   await page.reload({ waitUntil: 'load' });
+  t.check('Nach dem Neuladen: Rekord und Sterne', /Rekord: 9 von 10/.test(await page.textContent('#start-rekord')) && await page.textContent('#stars') === '9');
   t.check('Nach dem Neuladen: „Weiterspielen“ und „Neu anfangen“', /Weiterspielen/.test(await page.textContent('#startBtn')) && await page.locator('#resetBtn').isVisible());
   const afterReload = await state(page);
   t.check('Gemähte Felder, Garben, Hof und Stationen bleiben erhalten', afterReload.solved === 10 && afterReload.mown >= 42 && afterReload.hof === 6 && afterReload.flowers >= 1 &&

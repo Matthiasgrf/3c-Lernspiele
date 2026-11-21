@@ -1,7 +1,8 @@
 name: Spiele prüfen
 
 # Läuft bei jedem Push: erst die Regel-Prüfung, dann öffnet ein Browser die Startseite und jedes Spiel.
-# Spiele mit einer Datei in tools/spieltests/ werden danach automatisch durchgespielt.
+# Spiele mit einer Datei in tools/spieltests/ werden danach automatisch durchgespielt (mehrere gleichzeitig).
+# Lokal dasselbe in einem Befehl:  node tools/pruefen.js
 on:
   push:
   workflow_dispatch:
@@ -24,10 +25,21 @@ jobs:
           node-version: 22
       - name: Regeln prüfen (Dateien, games.js, Pfade)
         run: node tools/check.js
+      - name: Playwright installieren
+        run: npm install --no-audit --no-fund
+      # Der Browser wird zwischengespeichert (Schlüssel: Playwright-Version aus package.json) – spart bei jedem Lauf den Download.
+      - name: Browser aus dem Zwischenspeicher holen
+        id: browser-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('package.json') }}
       - name: Browser installieren
-        run: |
-          npm install --no-audit --no-fund
-          npx playwright install --with-deps chromium
+        if: steps.browser-cache.outputs.cache-hit != 'true'
+        run: npx playwright install --with-deps chromium
+      - name: Systembibliotheken für den Browser
+        if: steps.browser-cache.outputs.cache-hit == 'true'
+        run: npx playwright install-deps chromium
       - name: Startseite und Spiele im Browser öffnen
         run: node tools/smoke.js
       - name: Spiele durchspielen

@@ -3,14 +3,15 @@
    JavaScript-Fehler, fehlende Dateien, Zugriffe auf fremde Server, fehlenden Link „Alle Spiele“.
    Screenshots landen in test-ergebnisse/ zum Ansehen.
 
-   Aufruf:  node tools/smoke.js              alle Spiele
-            node tools/smoke.js elisabeth    nur ein Spiel (Ordnername)
+   Aufruf:  node tools/smoke.js              Startseite und alle Spiele (mehrere gleichzeitig)
+            node tools/smoke.js elisabeth    nur ein Spiel (Ordnername, auch mehrere möglich)
+            --parallel <n>                   höchstens n Seiten gleichzeitig
 
    Der Test spielt die Spiele nicht durch – Spielablauf und End-Bildschirm weiter von Hand prüfen. */
 const fs = require('fs');
 const path = require('path');
 const { chromium } = require('playwright');
-const { ROOT, loadGames, startServer } = require('./lib');
+const { ROOT, loadGames, startServer, parallel, parallelLimit } = require('./lib');
 
 const OUT = path.join(ROOT, 'test-ergebnisse');
 const SIZES = [
@@ -58,34 +59,46 @@ async function checkGame(page, problems) {
   let visible = false;
   for (let i = 0; i < n; i++) if (await links.nth(i).isVisible()) visible = true;
   if (!visible) problems.push('Auf dem Start-Bildschirm ist kein Link „🏠 Alle Spiele“ (href="../../") sichtbar.');
+  /* Knöpfe und Texte, die rechts aus dem Bildschirm ragen, sind auf dem Handy nicht erreichbar. */
+  const cut = await page.evaluate(() => {
+    const w = window.innerWidth;
+    return [...document.querySelectorAll('a, button, input, select')].filter(e => {
+      const r = e.getBoundingClientRect(), st = getComputedStyle(e);
+      return r.width > 0 && r.height > 0 && st.visibility !== 'hidden' &&
+        r.left < w && r.right > 0 && (r.right > w + 2 || r.left < -2);   /* angeschnitten, nicht ganz versteckt */
+    }).slice(0, 3).map(e => (e.id ? '#' + e.id : e.tagName.toLowerCase()) + ' „' + (e.textContent || '').trim().slice(0, 25) + '“');
+  });
+  if (cut.length) problems.push('Ragt seitlich aus dem Bildschirm: ' + cut.join(', '));
 }
 
 (async () => {
-  const only = process.argv[2];
+  const args = process.argv.slice(2);
+  const limit = parallelLimit(args);
   let games = loadGames();
   const visibleCount = games.filter(g => !g.hidden).length;
-  if (only) {
-    games = games.filter(g => g.id === only);
-    if (!games.length) { console.log('✗ Kein Spiel mit der id "' + only + '" in games.js.'); process.exit(1); }
+  if (args.length) {
+    const unknown = args.filter(id => !games.some(g => g.id === id));
+    if (unknown.length) { console.log('✗ Kein Spiel mit der id "' + unknown.join('", "') + '" in games.js.'); process.exit(1); }
+    games = games.filter(g => args.includes(g.id));
   }
   fs.mkdirSync(OUT, { recursive: true });
   const { server, url } = await startServer();
   const browser = await chromium.launch();
-  let failed = 0;
 
-  const report = (label, problems) => {
-    console.log((problems.length ? '✗ ' : '✓ ') + label);
+  const jobs = [];
+  for (const size of SIZES) {
+    if (!args.length) jobs.push({ label: 'Startseite (' + size.name + ')', rel: '', size, shot: 'startseite', check: (p, pr) => checkHome(p, pr, visibleCount) });
+    for (const g of games) jobs.push({ label: g.id + ' (' + size.name + ')', rel: g.path || 'games/' + g.id + '/', size, shot: g.id, check: checkGame });
+  }
+  const results = await parallel(jobs, limit, j => visit(browser, url, j.rel, j.size, j.shot, j.check));
+
+  let failed = 0;
+  jobs.forEach((j, i) => {
+    const problems = results[i];
+    console.log((problems.length ? '✗ ' : '✓ ') + j.label);
     problems.forEach(p => console.log('    ' + p));
     if (problems.length) failed++;
-  };
-
-  for (const size of SIZES) {
-    if (!only) report('Startseite (' + size.name + ')', await visit(browser, url, '', size, 'startseite', (p, pr) => checkHome(p, pr, visibleCount)));
-    for (const g of games) {
-      const rel = g.path || 'games/' + g.id + '/';
-      report(g.id + ' (' + size.name + ')', await visit(browser, url, rel, size, g.id, checkGame));
-    }
-  }
+  });
 
   await browser.close();
   server.close();

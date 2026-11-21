@@ -9,7 +9,7 @@
 
 
 ## Geprüft
-- [ ] `node tools/check.js` ohne Fehler
-- [ ] `node tools/smoke.js` ohne Fehler, Screenshots (Computer und Handy) angesehen
-- [ ] Spiel bis zum End-Bildschirm gespielt, Link „🏠 Alle Spiele“ an allen drei Stellen
+- [ ] `node tools/pruefen.js <ordner>` ohne Fehler (Regeln, Browser-Test, Durchspiel-Test)
+- [ ] Screenshots (Computer und Handy) angesehen
+- [ ] Spiel bis zum End-Bildschirm gespielt bzw. Durchspiel-Test vorhanden, Link „🏠 Alle Spiele“ an allen drei Stellen
 - [ ] Kachel auf der Startseite: Bild und Texte passen

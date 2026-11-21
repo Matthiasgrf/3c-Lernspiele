@@ -44,4 +44,24 @@ function startServer() {
   });
 }
 
-module.exports = { ROOT, GAMES_DIR, GAMES_JS, loadGames, startServer };
+/* Arbeitet eine Liste mit höchstens `limit` gleichzeitigen Aufgaben ab, Ergebnisse in der Reihenfolge der Liste.
+   Die Browser-Tests laufen so mehrere Spiele gleichzeitig und sind deutlich schneller fertig. */
+async function parallel(items, limit, fn) {
+  const results = new Array(items.length);
+  let next = 0;
+  const worker = async () => {
+    while (next < items.length) { const i = next++; results[i] = await fn(items[i], i); }
+  };
+  await Promise.all(Array.from({ length: Math.max(1, Math.min(limit, items.length)) }, worker));
+  return results;
+}
+
+/* Wie viele Spiele gleichzeitig getestet werden: --parallel <n> oder Umgebungsvariable PARALLEL, sonst nach CPU-Kernen. */
+function parallelLimit(args) {
+  const i = args.indexOf('--parallel');
+  if (i >= 0) { const n = Number(args[i + 1]); args.splice(i, 2); if (n > 0) return n; }
+  if (Number(process.env.PARALLEL) > 0) return Number(process.env.PARALLEL);
+  return Math.max(1, Math.min(4, require('os').cpus().length));
+}
+
+module.exports = { ROOT, GAMES_DIR, GAMES_JS, loadGames, startServer, parallel, parallelLimit };

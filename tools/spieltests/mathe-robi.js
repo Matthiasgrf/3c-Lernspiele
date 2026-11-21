@@ -206,7 +206,7 @@ module.exports = async function (t) {
   });
   t.check('Stufen: Start eine unter der gespeicherten, 2 richtige heben, ein Fehler senkt, höchstens 5',
     stufen === 'Start 3 | später noch leer: true | 3 | 4 | 3 | 5', stufen);
-  await page.waitForTimeout(200);
+  await page.waitForFunction(() => /^Stufe 5 · Serie/.test(document.getElementById('streak').textContent), null, { timeout: 5000 }).catch(() => {});
   t.check('Stufe steht in der Anzeige', /^Stufe 5 · Serie/.test(await page.textContent('#streak')), await page.textContent('#streak'));
   await page.close();
   page = await go(DESK);
@@ -227,7 +227,8 @@ module.exports = async function (t) {
         asked.push({ text: B.q.text, replay: !!B.q.replay });
         solve(B);
         B.wait = 0.01;
-        await new Promise(r => setTimeout(r, 150));
+        /* warten, bis das Spiel die nächste Frage gestellt hat (unter Last dauert ein Bild länger) */
+        for (let k = 0; k < 100 && !B.dead && B.locked; k++) await new Promise(r => setTimeout(r, 50));
       }
       G.p.x = G.L.goal.x - 30; G.p.y = 280;
       return asked;
@@ -253,7 +254,7 @@ module.exports = async function (t) {
   t.check('Endgegner fragt die verpasste Aufgabe noch einmal, danach neue',
     learn.boss[0].text === learn.text && learn.boss[0].replay && !learn.boss[1].replay && learn.boss[1].text !== learn.text,
     JSON.stringify(learn.boss));
-  await page.waitForSelector('#win:not([hidden])', { timeout: 10000 });
+  await page.waitForSelector('#win:not([hidden])', { timeout: 20000 });
   const review = await page.textContent('#review');
   t.check('Rückblick nennt die knifflige Aufgabe mit Lösung', review.includes('knifflig') && review.includes(learn.full), review);
   await t.shot(page, 'rueckblick');
@@ -278,7 +279,7 @@ module.exports = async function (t) {
     for (let i = 2; i < L.stations.length; i++) solve(L.stations[i]);
     await beatBoss();
   });
-  await page.waitForSelector('#win:not([hidden])', { timeout: 10000 });
+  await page.waitForSelector('#win:not([hidden])', { timeout: 20000 });
   t.check('Rückblick ohne Fehler lobt', (await page.textContent('#review')).includes('Alle Aufgaben beim ersten Versuch'));
   await page.close();
   page = await go(DESK, '', { again: { mal: [{ text: 'kaputt' }, 7, { text: '3 · 3 = ?', ans: 9, opts: [9, 9, 8], exp: '', tip: '', full: '' }] } });

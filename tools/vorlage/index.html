@@ -8,7 +8,8 @@
 <style>
 /* Vorlage für ein neues Spiel: ein einfaches Quiz mit allem, was jedes Spiel braucht –
    Start-, Spiel- und Gewinn-Bildschirm, Link „Alle Spiele“ an allen drei Stellen, Fortschritt,
-   freundliches Feedback, Speicherstand mit eigenem Schlüssel, große Knöpfe für Touch. */
+   freundliches Feedback, Sterne und Rekord, Speicherstand mit eigenem Schlüssel, große Knöpfe für Touch.
+   Dazu gehört ein fertiger Durchspiel-Test (tools/vorlage/spieltest.js), den neues-spiel.js mit anlegt. */
 *{box-sizing:border-box}
 html,body{margin:0;height:100%}
 body{font-family:"Trebuchet MS","Segoe UI",system-ui,sans-serif;color:#16324f;
@@ -29,18 +30,22 @@ p{font-size:18px;line-height:1.4;margin:10px 0}
 .btn.wrong{background:#ffe0dc;border-color:#e57368}
 .btn:focus-visible,.pill:focus-visible{outline:4px solid #16324f;outline-offset:2px}
 #feedback{min-height:54px;font-weight:700}
+#record,#winStars{font-weight:700}
+#record:empty{display:none}
 [hidden]{display:none!important}
 </style>
 </head>
 <body>
 <div class="bar" id="bar" hidden>
   <a class="pill" href="../../">🏠 Alle Spiele</a>
+  <span class="pill" id="stars"></span>
   <span class="pill" id="progress"></span>
 </div>
 <main>
   <section class="card" id="start">
     <h1>SPIEL_TITEL</h1>
     <p>TODO: Erkläre in zwei kurzen Sätzen, was zu tun ist.</p>
+    <p id="record"></p>
     <button class="btn main" id="startBtn">▶ Los geht's!</button>
     <a class="btn" href="../../">🏠 Alle Spiele</a>
   </section>
@@ -56,6 +61,7 @@ p{font-size:18px;line-height:1.4;margin:10px 0}
     <div style="font-size:70px">🏆</div>
     <h1>Geschafft!</h1>
     <p>Du hast alle Fragen gelöst. Super gemacht!</p>
+    <p id="winStars"></p>
     <button class="btn main" id="againBtn">🔄 Nochmal spielen</button>
     <a class="btn" href="../../">🏠 Alle Spiele</a>
   </section>
@@ -67,7 +73,7 @@ p{font-size:18px;line-height:1.4;margin:10px 0}
   var SAVE = 'SPIEL_SCHLUESSEL';
 
   /* TODO: eigene Fragen. q = Frage, a = Antworten, r = Nummer der richtigen Antwort (ab 0),
-     e = kurze Erklärung, die nach der richtigen Antwort erscheint. */
+     e = kurze Erklärung, die nach der richtigen Antwort erscheint. Die Antworten werden beim Anzeigen gemischt. */
   var QUESTIONS = [
     { q: 'Wie viele Tage hat eine Woche?', a: ['5', '7', '10'], r: 1, e: 'Eine Woche hat 7 Tage: von Montag bis Sonntag.' },
     { q: 'Welche Jahreszeit kommt nach dem Winter?', a: ['Frühling', 'Herbst', 'Sommer'], r: 0, e: 'Nach dem Winter kommt der Frühling. Dann blühen die ersten Blumen.' },
@@ -75,29 +81,49 @@ p{font-size:18px;line-height:1.4;margin:10px 0}
   ];
 
   var $ = function (id) { return document.getElementById(id); };
-  var index = 0;
+  /* Spielstand: index = aktuelle Frage, stars = Sterne in dieser Runde (richtig beim ersten Versuch),
+     best = Rekord (meiste Sterne in einer Runde). */
+  var state = load();
+  var firstTry = true;
 
-  function load() { try { return Number(localStorage.getItem(SAVE)) || 0; } catch (e) { return 0; } }
-  function save() { try { localStorage.setItem(SAVE, String(index)); } catch (e) {} }
+  function load() {
+    var s = null;
+    try { s = JSON.parse(localStorage.getItem(SAVE)); } catch (e) {}
+    s = s && typeof s === 'object' ? s : {};
+    var num = function (v, max) { v = Math.floor(Number(v)); return v >= 0 && v <= max ? v : 0; };
+    return { index: num(s.index, QUESTIONS.length - 1), stars: num(s.stars, QUESTIONS.length), best: num(s.best, QUESTIONS.length) };
+  }
+  function save() { try { localStorage.setItem(SAVE, JSON.stringify(state)); } catch (e) {} }
 
   function show(screen) {
     ['start', 'game', 'win'].forEach(function (id) { $(id).hidden = id !== screen; });
     $('bar').hidden = screen !== 'game';
   }
+  function showRecord() {
+    $('record').textContent = state.best ? '🏅 Dein Rekord: ' + state.best + ' von ' + QUESTIONS.length + ' ⭐' : '';
+  }
+
+  function shuffled(list) {
+    var out = list.slice();
+    for (var i = out.length - 1; i > 0; i--) { var j = Math.floor(Math.random() * (i + 1)); var t = out[i]; out[i] = out[j]; out[j] = t; }
+    return out;
+  }
 
   function ask() {
-    if (index >= QUESTIONS.length) { index = 0; save(); show('win'); return; }
-    var item = QUESTIONS[index];
-    $('progress').textContent = 'Frage ' + (index + 1) + ' / ' + QUESTIONS.length;
+    if (state.index >= QUESTIONS.length) { finish(); return; }
+    var item = QUESTIONS[state.index];
+    firstTry = true;
+    $('progress').textContent = 'Frage ' + (state.index + 1) + ' / ' + QUESTIONS.length;
+    $('stars').textContent = '⭐ ' + state.stars;
     $('question').textContent = item.q;
     $('feedback').textContent = '';
     $('nextBtn').hidden = true;
     $('answers').innerHTML = '';
-    item.a.forEach(function (text, i) {
+    shuffled(item.a.map(function (text, i) { return { text: text, right: i === item.r }; })).forEach(function (o) {
       var b = document.createElement('button');
       b.className = 'btn';
-      b.textContent = text;
-      b.addEventListener('click', function () { answer(b, i === item.r, item); });
+      b.textContent = o.text;
+      b.addEventListener('click', function () { answer(b, o.right, item); });
       $('answers').appendChild(b);
     });
     show('game');
@@ -107,19 +133,34 @@ p{font-size:18px;line-height:1.4;margin:10px 0}
     if (correct) {
       button.classList.add('right');
       [].forEach.call($('answers').children, function (b) { b.disabled = true; });
+      if (firstTry) { state.stars++; $('stars').textContent = '⭐ ' + state.stars; }
       $('feedback').textContent = '✅ Richtig! ' + item.e;
       $('nextBtn').hidden = false;
       $('nextBtn').focus();
     } else {
+      firstTry = false;
       button.classList.add('wrong');
       button.disabled = true;
       $('feedback').textContent = '🤔 Noch nicht ganz. Versuch es noch einmal!';
     }
   }
 
-  $('startBtn').addEventListener('click', function () { index = Math.min(load(), QUESTIONS.length - 1); ask(); });
-  $('nextBtn').addEventListener('click', function () { index++; save(); ask(); });
-  $('againBtn').addEventListener('click', function () { index = 0; save(); ask(); });
+  function finish() {
+    var record = state.stars > state.best;
+    if (record) state.best = state.stars;
+    $('winStars').textContent = 'Du hast ' + state.stars + ' von ' + QUESTIONS.length + ' ⭐ gesammelt.' + (record ? ' Neuer Rekord! 🎉' : '');
+    state.index = 0; state.stars = 0; save();
+    showRecord();
+    show('win');
+  }
+
+  $('startBtn').addEventListener('click', ask);
+  $('nextBtn').addEventListener('click', function () { state.index++; save(); ask(); });
+  $('againBtn').addEventListener('click', function () { state.index = 0; state.stars = 0; save(); ask(); });
+  showRecord();
+
+  /* Zugang für den Durchspiel-Test (tools/spieltests/<ordner>.js), nur mit ?test in der Adresse */
+  if (/[?&]test\b/.test(location.search)) window.SPIEL = { QUESTIONS: QUESTIONS, SAVE: SAVE };
 })();
 </script>
 </body>

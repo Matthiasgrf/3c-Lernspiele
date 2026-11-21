@@ -1,7 +1,8 @@
 /* Liste aller Spiele auf der Startseite – die Reihenfolge hier ist die Reihenfolge der Kacheln.
 
-   Neues Spiel: Ordner games/<id>/ anlegen (index.html, thumbnail.jpg, readme.md)
-   und hier am Ende einen Eintrag ergänzen. Danach prüfen:  node tools/check.js
+   Neues Spiel:  node tools/neues-spiel.js <id> "<Titel>" "<Fach>"  legt Ordner und Eintrag an.
+   Von Hand: Ordner games/<id>/ (index.html, thumbnail.jpg, readme.md) und hier am Ende einen Eintrag.
+   Danach prüfen:  node tools/pruefen.js <id>
 
    Pflichtfelder
      id           Ordnername unter games/ (genau gleich geschrieben)

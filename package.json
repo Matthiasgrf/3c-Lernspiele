@@ -3,10 +3,13 @@
   "private": true,
   "description": "Browser-Lernspiele für die Grundschule. Die Seite selbst braucht keinen Build – npm wird nur für die Tests benutzt.",
   "scripts": {
+    "pruefen": "node tools/pruefen.js",
+    "neues-spiel": "node tools/neues-spiel.js",
+    "anpassen": "node tools/anpassen.js",
     "check": "node tools/check.js",
     "smoke": "node tools/smoke.js",
     "spieltest": "node tools/spieltest.js",
-    "test": "node tools/check.js && node tools/smoke.js && node tools/spieltest.js",
+    "test": "node tools/pruefen.js",
     "start": "python3 -m http.server 8000"
   },
   "devDependencies": {

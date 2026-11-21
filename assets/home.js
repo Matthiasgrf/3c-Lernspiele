@@ -56,13 +56,27 @@
       b.node.setAttribute('aria-pressed', b.subject === subject ? 'true' : 'false');
     });
   }
+  /* Das gewählte Fach steht in der Adresse (z. B. …/#Mathe): Link lässt sich weitergeben,
+     und nach „Zurück“ aus einem Spiel ist der Filter noch eingestellt. */
+  function fromHash() {
+    var h = '';
+    try { h = decodeURIComponent(location.hash.slice(1)); } catch (e) {}
+    return subjects.indexOf(h) >= 0 ? h : '';
+  }
   [''].concat(subjects).forEach(function (subject) {
-    var b = el('button', 'chip', subject || 'Alle');
+    var count = subject ? tiles.filter(function (t) { return t.subject === subject; }).length : tiles.length;
+    var b = el('button', 'chip', (subject || 'Alle') + ' ');
+    b.appendChild(el('span', 'count', String(count)));
     b.type = 'button';
-    b.addEventListener('click', function () { choose(subject); });
+    b.addEventListener('click', function () {
+      choose(subject);
+      var url = location.pathname + location.search + (subject ? '#' + encodeURIComponent(subject) : '');
+      try { history.replaceState(null, '', url); } catch (e) {}
+    });
     filterBar.appendChild(b);
     buttons.push({ node: b, subject: subject });
   });
   filterBar.hidden = false;
-  choose('');
+  window.addEventListener('hashchange', function () { choose(fromHash()); });
+  choose(fromHash());
 })();

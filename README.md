@@ -27,20 +27,23 @@ Am einfachsten: Spiel-Datei oder Idee an Claude geben – die Checkliste steht i
 
 Von Hand:
 
-1. Spiel anlegen. Das erzeugt den Ordner, fehlende Dateien aus der Vorlage und den Eintrag in `games.js`
-   (eine schon vorhandene `index.html` bleibt unverändert):
+1. Spiel anlegen. Das erzeugt den Ordner, fehlende Dateien aus der Vorlage, einen Durchspiel-Test und den
+   Eintrag in `games.js`:
 
-       node tools/neues-spiel.js mathe-einmaleins "Einmaleins-Rakete" "Mathe" "3. Klasse"
+       node tools/neues-spiel.js mathe-einmaleins "Einmaleins-Rakete" "Mathe" "3. Klasse" --beschreibung "Ein Satz."
 
-2. Spiel, `readme.md` und die Beschreibung in `games.js` fertig machen.
+   Liegt im Ordner schon eine hochgeladene `index.html`, bleibt ihr Inhalt unverändert; die technischen
+   Regeln (Zoom-Schutz, `lang="de"`, Three.js lokal statt vom CDN …) baut das Werkzeug automatisch ein
+   und listet, was noch von Hand zu tun ist. Einzeln: `node tools/anpassen.js <ordner>`.
+
+2. Spiel, `readme.md` und die Beschreibung in `games.js` fertig machen (alle „TODO“).
 3. Vorschaubild erzeugen und ansehen:
 
        node tools/thumbnail.js mathe-einmaleins --klick "#startBtn" --verstecken ".bar"
 
-4. Prüfen:
+4. Alles prüfen (Regeln, Browser, Durchspielen – wie auf GitHub):
 
-       node tools/check.js
-       node tools/smoke.js mathe-einmaleins
+       node tools/pruefen.js mathe-einmaleins
 
 5. Committen, pushen, Pull Request nach `main`.
 
@@ -59,6 +62,9 @@ Von Hand:
 Link und Vorschaubild ergeben sich aus der `id`. Mit `hidden: true` verschwindet ein Spiel von der
 Startseite, ohne dass man es löschen muss. Die Reihenfolge in der Liste ist die Reihenfolge der Kacheln.
 
+Die Fach-Filter der Startseite stehen in der Adresse: `…/#Mathe` zeigt nur die Mathe-Spiele – praktisch zum
+Weitergeben an die Klasse.
+
 ### Regeln für jedes Spiel
 
 - Nur **relative Pfade** (kein führendes `/`), Link zur Übersicht ist `../../` mit dem Text „🏠 Alle Spiele“ –
@@ -72,10 +78,13 @@ Startseite, ohne dass man es löschen muss. Die Reihenfolge in der Liste ist die
 
 | Befehl | Was passiert |
 | --- | --- |
-| `node tools/check.js` | prüft ohne Browser: Einträge in `games.js`, Dateien, Bildgröße, Pfade, fremde Server, Speicher-Schlüssel |
-| `node tools/smoke.js [id]` | öffnet Startseite und Spiele in Computer- und Handy-Größe, meldet JavaScript-Fehler, Screenshots in `test-ergebnisse/` |
-| `node tools/spieltest.js [id]` | spielt Spiele mit einer Testdatei in `tools/spieltests/` automatisch durch (bisher: `mathe-robi`) |
+| `node tools/pruefen.js [id …]` | alle drei Prüfungen nacheinander, mit Zusammenfassung und Liste der Screenshots |
+| `node tools/check.js` | prüft ohne Browser: Einträge in `games.js`, Dateien, Bildgröße, Pfade, fremde Server, Speicher-Schlüssel, Reste aus der Vorlage, Fach-Schreibweisen |
+| `node tools/smoke.js [id …]` | öffnet Startseite und Spiele in Computer- und Handy-Größe, meldet JavaScript-Fehler und angeschnittene Knöpfe, Screenshots in `test-ergebnisse/` |
+| `node tools/spieltest.js [id …]` | spielt Spiele mit einer Testdatei in `tools/spieltests/` automatisch durch |
 | `python3 -m http.server 8000` | Seite lokal ansehen unter `http://localhost:8000` |
+
+Die Browser-Tests laufen mehrere Seiten gleichzeitig; mit `--parallel 1` nacheinander.
 
 `check.js` braucht nur Node. `smoke.js`, `spieltest.js` und `thumbnail.js` brauchen zusätzlich Playwright
 (`npm install` und einmalig `npx playwright install chromium`).

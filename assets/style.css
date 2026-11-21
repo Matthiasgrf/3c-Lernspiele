@@ -13,6 +13,9 @@ main{max-width:1000px;margin:0 auto;padding:18px 16px 40px}
 .chip{font:inherit;font-size:16px;font-weight:700;color:var(--ink);background:#fff;border:3px solid #fff;border-radius:999px;
   padding:9px 18px;min-height:44px;cursor:pointer;box-shadow:0 3px 10px rgba(22,50,79,.2)}
 .chip[aria-pressed="true"]{background:var(--accent);border-color:#fff;color:#fff}
+.chip .count{display:inline-block;min-width:24px;margin-left:2px;padding:1px 7px;border-radius:999px;font-size:13px;
+  background:#dff0fc;color:#16466e}
+.chip[aria-pressed="true"] .count{background:#fff;color:#a04f00}
 .chip:focus-visible,.tile:focus-visible{outline:4px solid var(--ink);outline-offset:3px}
 
 .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:20px}

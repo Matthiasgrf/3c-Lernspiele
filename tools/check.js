@@ -50,9 +50,17 @@ function checkGameHtml(id, dir, html) {
   if (!/<meta[^>]+name=["']viewport["']/i.test(html)) err(where, 'viewport-Meta-Tag fehlt (wichtig für Handy und Tablet).');
   /* Zoom-Schutz: sonst zoomen Kinder auf dem Handy aus Versehen und kommen nicht mehr zurück. */
   const viewport = (/<meta[^>]+name=["']viewport["'][^>]*>/i.exec(html) || [''])[0];
-  if (viewport && !/user-scalable\s*=\s*no/i.test(viewport)) err(where, 'viewport-Meta-Tag braucht "maximum-scale=1,user-scalable=no" (Zoom-Schutz).');
-  if (!/<script[^>]+src=["']\.\.\/\.\.\/assets\/zoom-schutz\.js["']/i.test(html)) err(where, 'Zoom-Schutz fehlt: <script src="../../assets/zoom-schutz.js"></script> im <head> einbinden.');
+  if (viewport && !/user-scalable\s*=\s*no/i.test(viewport)) err(where, 'viewport-Meta-Tag braucht "maximum-scale=1,user-scalable=no" (Zoom-Schutz) – node tools/anpassen.js ' + id);
+  if (!/<script[^>]+src=["']\.\.\/\.\.\/assets\/zoom-schutz\.js["']/i.test(html)) err(where, 'Zoom-Schutz fehlt: <script src="../../assets/zoom-schutz.js"></script> im <head> einbinden – node tools/anpassen.js ' + id);
   if (!/<title>\s*\S/i.test(html)) warn(where, '<title> fehlt oder ist leer.');
+
+  /* Reste aus der Vorlage (tools/vorlage/index.html) */
+  if (/SPIEL_(?:TITEL|SCHLUESSEL|FACH|KLASSE|ORDNER)/.test(html)) err(where, 'enthält noch Platzhalter wie SPIEL_TITEL aus der Vorlage.');
+  const visible = html.replace(/<script[\s\S]*?<\/script>|<style[\s\S]*?<\/style>|<!--[\s\S]*?-->/gi, '');
+  if (/TODO/.test(visible)) err(where, 'zeigt noch „TODO“ im Spiel an (Text aus der Vorlage ersetzen).');
+  if (html.includes('Wie viele Tage hat eine Woche?') && html.includes('Welche Jahreszeit kommt nach dem Winter?')) {
+    warn(where, 'enthält noch die Beispielfragen der Vorlage.');
+  }
 
   if (!/href\s*=\s*\\?["']\.\.\/\.\.\/\\?["']/.test(html)) err(where, 'Link zurück zur Übersicht (href="../../") fehlt.');
   const homeTexts = (html.match(/Alle Spiele/g) || []).length;
@@ -148,6 +156,21 @@ function main() {
       if (text.trim().length < 40) err(base + readme, 'ist leer oder zu kurz (Inhalt, Steuerung, Besonderheiten).');
       if (/TODO/.test(text)) err(base + readme, 'enthält noch „TODO“.');
     }
+  });
+
+  /* Fächer: gleiche Fächer in verschiedener Schreibweise ergeben zwei Filter-Knöpfe. */
+  const norm = t => t.toLowerCase().replace(/[^a-zäöüß]/g, '');
+  const subjects = [...new Set(games.filter(g => g && typeof g.subject === 'string').map(g => g.subject))];
+  subjects.forEach((a, i) => subjects.slice(i + 1).forEach(b => {
+    const x = norm(a), y = norm(b);
+    if (x === y) err('games.js', 'Fach "' + a + '" und "' + b + '" sind gleich, nur anders geschrieben – eine Schreibweise verwenden.');
+    else if (Math.min(x.length, y.length) >= 4 && (x.startsWith(y) || y.startsWith(x))) warn('games.js', 'Fach "' + a + '" und "' + b + '" – ist das dasselbe Fach?');
+  }));
+
+  /* Durchspiel-Tests ohne Spiel */
+  const testDir = path.join(__dirname, 'spieltests');
+  if (fs.existsSync(testDir)) fs.readdirSync(testDir).filter(f => f.endsWith('.js')).forEach(f => {
+    if (!folders.includes(f.slice(0, -3))) err('tools/spieltests/' + f, 'gehört zu keinem Spielordner (Name = Ordnername, gleiche Groß-/Kleinschreibung).');
   });
 
   folders.forEach(f => {

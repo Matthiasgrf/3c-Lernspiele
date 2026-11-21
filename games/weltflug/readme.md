@@ -15,7 +15,8 @@ Sagrada Família, Empire State Building und Burj Khalifa. Neben jedem Bauwerk li
 schwebendem Edelstein – dort kann man landen und bekommt den Ort, die Bauzeit und zwei kurze Infos.
 Der erste Besuch gibt 5 Punkte, die Anzeige oben zeigt 🏛️ 3/10. Besuchte Bauwerke haben einen grünen Ring.
 
-Wer alle Länder besucht hat, wird „Welt-Meister“. Der Spielstand wird im Browser gespeichert (`weltflug_v1`).
+Wer alle Länder besucht hat, wird „Welt-Meister“. Der Spielstand wird im Browser gespeichert (`weltflug_v1`). Dazu kommt ein Rekord: der höchste Punktestand (⭐) einer Runde.
+Er bleibt bei „Neu starten“ und „Nochmal spielen“ erhalten und steht auf dem Start- und dem Gewinn-Bildschirm.
 
 Steuerung: Pfeiltasten oder A/D zum Lenken, W schneller, S langsamer, Leertaste landen.
 Auf Tablet/Handy: ◀ ▶ gedrückt halten, 🚀 schneller, Landen-Button antippen.

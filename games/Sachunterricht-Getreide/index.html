@@ -392,7 +392,7 @@
     <div id="hud">
         <a class="hud-box home-link" href="../../">🏠 Alle Spiele</a>
         <div class="hud-box" id="controls-hint">🚜 Pfeiltasten (↑ ↓ ← →) zum Fahren</div>
-        <div class="hud-box">🌾 Stationen: <span id="score">0</span> / 10</div>
+        <div class="hud-box">🌾 Stationen: <span id="score">0</span> / 10 · ⭐ <span id="stars">0</span></div>
         <button class="mode-btn" id="mode-toggle-btn" onclick="toggleInputMode()">📱 Modus: Auto</button>
     </div>
 
@@ -432,6 +432,8 @@
         <div class="modal-card" style="text-align:center;">
             <h2 style="color:#15803d; font-size:1.8rem; margin-bottom:12px;">🏆 Alle 10 Stationen geschafft! 🏆</h2>
             <p style="font-size:1.15rem; margin-bottom:20px;">Du hast alle Bilder beschriftet, den Lückentext gelöst und das Getreide-Rätsel gemeistert. Viel Erfolg bei deiner Probe!</p>
+            <p id="win-stars" style="font-size:1.15rem; font-weight:bold; margin-bottom:6px;"></p>
+            <p id="win-rekord" style="font-size:1.15rem; font-weight:bold; color:#b45309; margin-bottom:20px;"></p>
             <button class="btn-primary" onclick="location.reload()">Nochmal spielen</button>
             <a class="btn-tip" href="../../" style="display:inline-block; margin-left:8px; text-decoration:none;">🏠 Alle Spiele</a>
         </div>
@@ -813,6 +815,11 @@
                     currentStation.solved = true;
                     solvedCount++;
                     document.getElementById('score').innerText = solvedCount;
+                    if (!currentStation.miss) {
+                        starCount++;
+                        document.getElementById('stars').innerText = starCount;
+                        fb.innerText += " ⭐ Beim ersten Versuch – du bekommst einen Stern!";
+                    }
                     currentStation.beacon.material.color.setHex(0x22c55e);
                     currentStation.cube.material.color.setHex(0x16a34a);
                 }
@@ -820,11 +827,13 @@
                 setTimeout(() => {
                     closeModal();
                     if (solvedCount === stationsData.length) {
+                        showWinRekord();
                         document.getElementById('win-screen').style.display = 'flex';
                     }
                 }, 1600);
             } else {
                 fb.style.color = "#b91c1c";
+                if (!currentStation.solved) currentStation.miss = true;
                 fb.innerText = `Du hast ${correctCount} von ${fields.length} richtig. Schau dir die roten Felder noch einmal an!`;
             }
         }
@@ -962,6 +971,16 @@
         const inputState = { up: false, down: false, left: false, right: false };
         let isModalOpen = false;
         let solvedCount = 0;
+        // Sterne: Station beim ersten Prüfen ganz richtig. Rekord = meiste Sterne, eigener Schlüssel.
+        const REKORD = 'sachunterricht_getreide_rekord';
+        let starCount = 0;
+        function loadRekord() { try { return Math.max(0, parseInt(localStorage.getItem(REKORD), 10) || 0); } catch (e) { return 0; } }
+        function showWinRekord() {
+            const old = loadRekord(), neu = starCount > old;
+            if (neu) { try { localStorage.setItem(REKORD, String(starCount)); } catch (e) {} }
+            document.getElementById('win-stars').innerText = `⭐ ${starCount} von ${stationsData.length} Stationen beim ersten Versuch richtig`;
+            document.getElementById('win-rekord').innerText = neu ? '🏆 Neuer Rekord!' : `🏆 Dein Rekord: ${old} von ${stationsData.length} Sternen`;
+        }
         let currentStation = null;
 
         window.addEventListener('keydown', (e) => {

@@ -308,6 +308,8 @@
         <h1>🏰 Großes Elisabeth-Quiz (3. Klasse)</h1>
         <p>Begleite <b>Elisabeth von Thüringen</b> auf einer Reise durch ihr ganzes Leben – von ihrer Kindheit bis zu ihrem Wirken in Marburg!</p>
         <p>Besuche alle <b><span class="station-count">20</span> Stationen</b> in der 3D-Welt und werde zum Profi für den Religionsunterricht.</p>
+        <p>🌹 Schaffst du eine Station ohne Fehler, bekommst du einen Rosen-Punkt.</p>
+        <p id="start-rekord" style="display:none; font-weight:bold; color:#b45309;"></p>
         <button class="action-btn" onclick="startGame()">Abenteuer starten! 🚀</button>
         <a class="action-btn" href="../../">🏠 Alle Spiele</a>
     </div>
@@ -327,6 +329,7 @@
     <div id="end-modal">
         <h1>🎉 Herzlichen Glückwunsch! 🎉</h1>
         <p id="final-score-text"></p>
+        <p id="final-rekord" style="font-weight:bold; color:#b45309;"></p>
         <p>Du kennst jetzt alle wichtigen Geschichten und Bedeutungen rund um die Heilige Elisabeth von Thüringen!</p>
         <button class="action-btn" onclick="location.reload()">Nochmal spielen 🔄</button>
         <a class="action-btn" href="../../">🏠 Alle Spiele</a>
@@ -746,6 +749,15 @@
         let cam = { x: -16, z: 15 };
         let completedStations = new Set();
         let score = 0;
+        // Rosen-Punkt nur für Stationen ohne falsche Antwort. Rekord = meiste Rosen-Punkte, eigener Schlüssel.
+        const missedStations = new Set();
+        const REKORD = 'elisabeth_rekord';
+        function loadRekord() { try { return Math.max(0, parseInt(localStorage.getItem(REKORD), 10) || 0); } catch (e) { return 0; } }
+        if (loadRekord() > 0) {
+            const el = document.getElementById('start-rekord');
+            el.innerText = `🏆 Dein Rekord: ${loadRekord()} von ${stationsData.length} Rosen-Punkten`;
+            el.style.display = 'block';
+        }
         let isGameActive = false;
         let isModalOpen = false;
         const keys = {};
@@ -1153,7 +1165,10 @@
 
                 if (!completedStations.has(stationIndex)) {
                     completedStations.add(stationIndex);
-                    score++;
+                    if (!missedStations.has(stationIndex)) {
+                        score++;
+                        feedbackEl.innerText += "\n🌹 Alles beim ersten Versuch richtig – ein Rosen-Punkt!";
+                    }
                     document.getElementById('score').innerText = score;
                     document.getElementById('progress').innerText = completedStations.size;
                 }
@@ -1170,6 +1185,7 @@
                 btnElement.style.background = "#dc2626";
                 btnElement.style.borderColor = "#7f1d1d";
                 btnElement.disabled = true;
+                if (!completedStations.has(stationIndex)) missedStations.add(stationIndex);
                 feedbackEl.className = "wrong";
                 feedbackEl.innerText = "❌ Nicht ganz! Lies noch einmal genau und probiere eine andere Antwort.";
             }
@@ -1179,6 +1195,9 @@
             isGameActive = false;
             document.getElementById('final-score-text').innerText =
                 `Du hast alle ${stationsData.length} Stationen gemeistert und ${score} von ${stationsData.length} Rosen-Punkten gesammelt!`;
+            const old = loadRekord(), neu = score > old;
+            if (neu) { try { localStorage.setItem(REKORD, String(score)); } catch (e) {} }
+            document.getElementById('final-rekord').innerText = neu ? '🏆 Neuer Rekord!' : `🏆 Dein Rekord: ${old} von ${stationsData.length} Rosen-Punkten`;
             document.getElementById('end-modal').style.display = 'block';
         }
 
